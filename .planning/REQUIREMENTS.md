@@ -88,39 +88,39 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SETUP-01 | Phase 1 | Pending |
-| SETUP-02 | Phase 1 | Pending |
-| SETUP-03 | Phase 1 | Pending |
-| SETUP-04 | Phase 1 | Pending |
-| SETUP-05 | Phase 1 | Pending |
-| SCORE-01 | Phase 1 | Pending |
-| SCORE-02 | Phase 1 | Pending |
-| SCORE-03 | Phase 1 | Pending |
-| SCORE-04 | Phase 1 | Pending |
-| SCORE-05 | Phase 1 | Pending |
-| SCORE-06 | Phase 1 | Pending |
-| UNDO-01 | Phase 2 | Pending |
-| UNDO-02 | Phase 2 | Pending |
-| UNDO-03 | Phase 2 | Pending |
-| UNDO-04 | Phase 2 | Pending |
-| DISPLAY-01 | Phase 1 | Pending |
-| DISPLAY-02 | Phase 1 | Pending |
-| DISPLAY-03 | Phase 2 | Pending |
-| DISPLAY-04 | Phase 2 | Pending |
-| BOARD-01 | Phase 3 | Pending |
-| BOARD-02 | Phase 3 | Pending |
-| BOARD-03 | Phase 3 | Pending |
-| BOARD-04 | Phase 3 | Pending |
-| BOARD-05 | Phase 3 | Pending |
-| STATE-01 | Phase 4 | Pending |
-| STATE-02 | Phase 4 | Pending |
-| STATE-03 | Phase 4 | Pending |
-| STATE-04 | Phase 4 | Pending |
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
+| INFRA-01 | Phase 1: Foundation | Pending |
+| INFRA-02 | Phase 1: Foundation | Pending |
+| INFRA-03 | Phase 1: Foundation | Pending |
+| INFRA-04 | Phase 1: Foundation | Pending |
+| INFRA-05 | Phase 1: Foundation | Pending |
+| SETUP-01 | Phase 2: Web UI | Pending |
+| SETUP-02 | Phase 2: Web UI | Pending |
+| SETUP-03 | Phase 2: Web UI | Pending |
+| SETUP-04 | Phase 2: Web UI | Pending |
+| SETUP-05 | Phase 2: Web UI | Pending |
+| SCORE-01 | Phase 2: Web UI | Pending |
+| SCORE-02 | Phase 2: Web UI | Pending |
+| SCORE-03 | Phase 2: Web UI | Pending |
+| SCORE-04 | Phase 2: Web UI | Pending |
+| SCORE-05 | Phase 2: Web UI | Pending |
+| SCORE-06 | Phase 2: Web UI | Pending |
+| DISPLAY-01 | Phase 2: Web UI | Pending |
+| DISPLAY-02 | Phase 2: Web UI | Pending |
+| DISPLAY-04 | Phase 2: Web UI | Pending |
+| UNDO-01 | Phase 3: History and Rollback | Pending |
+| UNDO-02 | Phase 3: History and Rollback | Pending |
+| UNDO-03 | Phase 3: History and Rollback | Pending |
+| UNDO-04 | Phase 3: History and Rollback | Pending |
+| DISPLAY-03 | Phase 3: History and Rollback | Pending |
+| BOARD-01 | Phase 4: SVG Board | Pending |
+| BOARD-02 | Phase 4: SVG Board | Pending |
+| BOARD-03 | Phase 4: SVG Board | Pending |
+| BOARD-04 | Phase 4: SVG Board | Pending |
+| BOARD-05 | Phase 4: SVG Board | Pending |
+| STATE-01 | Phase 5: Game States | Pending |
+| STATE-02 | Phase 5: Game States | Pending |
+| STATE-03 | Phase 5: Game States | Pending |
+| STATE-04 | Phase 5: Game States | Pending |
 
 **Coverage:**
 - v1 requirements: 33 total
@@ -129,4 +129,4 @@
 
 ---
 *Requirements defined: 2026-05-01*
-*Last updated: 2026-05-01 after research synthesis*
+*Last updated: 2026-05-01 after roadmap creation*
