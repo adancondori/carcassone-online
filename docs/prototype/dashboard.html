@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Carcassonne Scoreboard</title>
+    <style>
+        :root {
+            /* Paleta inspirada en la caja de Carcassonne Plus */
+            --bg-dark: #162d4a;
+            --bg-medium: #1e3d62;
+            --bg-card: #24497a;
+            --bg-input: #2d5690;
+            --text-primary: #ede4d3;
+            --text-secondary: #b4c4d6;
+            --text-muted: #708aab;
+            --accent-gold: #c9a54c;
+            --accent-gold-hover: #dbb85a;
+            --border: #2f5a8e;
+            --danger: #c0392b;
+            --success: #4caf60;
+
+            /* Colores de los seguidores (meeples) */
+            --color-blue: #0055BF;
+            --color-red: #CC0000;
+            --color-green: #237F23;
+            --color-yellow: #F2CD00;
+            --color-black: #333333;
+            --color-pink: #FF69B4;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 0 12px 24px;
+        }
+
+        /* Board + controls: side-by-side on wide viewports */
+        .main-workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .main-column {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .main-column .board-wrapper {
+            margin-bottom: 12px;
+        }
+
+        .main-column .score-table-wrapper {
+            margin-bottom: 0;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 12px;
+        }
+
+        .header-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .header-game {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .header-status {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(39, 174, 96, 0.2);
+            color: var(--success);
+        }
+
+        /* ── Board SVG ── */
+        .board-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .board-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+        }
+
+        /* Player tokens (meeple) on board */
+        .token-meeple {
+            filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.6));
+            transition: transform 0.4s ease;
+        }
+
+        .token-border {
+            fill: rgba(255,255,255,0.9);
+        }
+
+        .token-label {
+            fill: white;
+            font-size: 8px;
+            font-weight: 800;
+            text-anchor: middle;
+            dominant-baseline: central;
+            pointer-events: none;
+        }
+
+        .token-label-dark {
+            fill: #1a1a1a;
+        }
+
+        .lap-badge-bg {
+            fill: var(--bg-dark);
+            stroke: var(--accent-gold);
+            stroke-width: 1.2;
+        }
+
+        .lap-badge {
+            font-size: 7px;
+            fill: var(--accent-gold);
+            font-weight: 800;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        /* ── Score Table ── */
+        .score-table-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .score-table th {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .score-table th:nth-child(n+3) {
+            text-align: center;
+        }
+
+        .score-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(47, 90, 142, 0.4);
+            font-size: 0.95rem;
+        }
+
+        .score-table td:nth-child(n+3) {
+            text-align: center;
+        }
+
+        .score-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .score-table tr.selected-player {
+            background: rgba(212, 165, 70, 0.1);
+        }
+
+        .score-table tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .score-table tbody tr:hover {
+            background: rgba(212, 165, 70, 0.08);
+        }
+
+        .player-dot {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .score-value {
+            font-weight: 700;
+            font-size: 1.15rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .cell-value, .lap-value {
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .lap-value {
+            font-size: 0.8rem;
+        }
+
+        /* ── Controls ── */
+        .controls {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 0;
+        }
+
+        .control-section {
+            margin-bottom: 14px;
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        /* Player selection chips */
+        .player-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .player-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--bg-medium);
+            border: 2px solid transparent;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            font-size: 0.85rem;
+        }
+
+        .player-chip:hover {
+            background: var(--bg-input);
+        }
+
+        .player-chip.active {
+            border-color: var(--accent-gold);
+            background: rgba(212, 165, 70, 0.12);
+        }
+
+        .chip-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* Event type buttons */
+        .type-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .type-btn {
+            padding: 8px 14px;
+            background: var(--bg-medium);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .type-btn:hover {
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+
+        .type-btn.active {
+            border-color: var(--accent-gold);
+            background: rgba(212, 165, 70, 0.12);
+            color: var(--accent-gold);
+        }
+
+        /* Point buttons */
+        .point-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .point-btn {
+            width: 48px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-medium);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .point-btn:hover {
+            background: var(--bg-input);
+        }
+
+        .point-btn.active {
+            border-color: var(--accent-gold);
+            background: rgba(212, 165, 70, 0.15);
+            color: var(--accent-gold);
+        }
+
+        .point-custom {
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .point-custom input {
+            width: 100%;
+            height: 44px;
+            padding: 0 12px;
+            background: var(--bg-input);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            outline: none;
+        }
+
+        .point-custom input:focus {
+            border-color: var(--accent-gold);
+        }
+
+        .point-custom input::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 0.85rem;
+        }
+
+        /* Note input */
+        .note-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .note-input:focus {
+            border-color: var(--accent-gold);
+        }
+
+        .note-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Submit button */
+        .btn-score {
+            width: 100%;
+            padding: 14px;
+            background: var(--accent-gold);
+            color: var(--bg-dark);
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s, transform 0.1s, opacity 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-score:hover {
+            background: var(--accent-gold-hover);
+        }
+
+        .btn-score:active {
+            transform: scale(0.98);
+        }
+
+        .btn-score:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        /* ── Action buttons ── */
+        .action-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .btn-action:hover {
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+
+        .btn-action.danger:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .btn-action .icon {
+            display: block;
+            font-size: 1.2rem;
+            margin-bottom: 2px;
+        }
+
+        /* ── History ── */
+        .history {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+        }
+
+        .history-list {
+            list-style: none;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(47, 90, 142, 0.3);
+            font-size: 0.82rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            transition: opacity 0.3s;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item.undone {
+            opacity: 0.35;
+            text-decoration: line-through;
+        }
+
+        .history-number {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            min-width: 20px;
+            text-align: right;
+            padding-top: 1px;
+        }
+
+        .history-content {
+            flex: 1;
+        }
+
+        .history-type {
+            color: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        .history-players {
+            color: var(--text-primary);
+        }
+
+        .history-note {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
+        .history-time {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            white-space: nowrap;
+            padding-top: 1px;
+        }
+
+        /* Scrollbar */
+        .history-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .history-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        /* ── Toast notification ── */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--success);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* ── Score flash animation ── */
+        @keyframes scoreFlash {
+            0% { color: var(--accent-gold); transform: scale(1.2); }
+            100% { color: var(--text-primary); transform: scale(1); }
+        }
+
+        .score-flash {
+            animation: scoreFlash 0.5s ease-out;
+        }
+
+        /* ── Responsive ── */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 1120px;
+                padding: 0 16px 24px;
+            }
+
+            .main-workspace {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 16px;
+            }
+
+            .controls {
+                width: min(320px, 36vw);
+                flex-shrink: 0;
+                position: sticky;
+                top: 12px;
+                align-self: flex-start;
+                max-height: calc(100vh - 24px);
+                overflow-y: auto;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .main-workspace {
+                margin-bottom: 0;
+            }
+
+            .controls {
+                margin-bottom: 12px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .container { padding: 0 8px 20px; }
+            .point-btn { width: 42px; height: 40px; font-size: 0.9rem; }
+            .type-btn { padding: 6px 10px; font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <div class="header-title">Carcassonne</div>
+                <div class="header-game">Partida del sabado</div>
+            </div>
+            <div class="header-status">En juego</div>
+        </div>
+
+        <div class="main-workspace">
+            <div class="main-column">
+                <!-- Board SVG -->
+                <div class="board-wrapper">
+                    <svg class="board-svg" viewBox="0 0 600 420" id="board-svg">
+                        <defs>
+                            <!-- Meeple shape (centered at 0,0, ~24px tall) -->
+                            <path id="meeple" d="
+                                M 0,-11
+                                C -3,-11 -5,-9 -5,-7
+                                L -5,-3
+                                L -11,-3
+                                C -12,-3 -12,-1.5 -12,0
+                                L -12,1
+                                L -7,5
+                                L -4,5
+                                L -4,10
+                                L 4,10
+                                L 4,5
+                                L 7,5
+                                L 12,1
+                                L 12,0
+                                C 12,-1.5 12,-3 11,-3
+                                L 5,-3
+                                L 5,-7
+                                C 5,-9 3,-11 0,-11 Z
+                            " />
+                        </defs>
+
+                        <!-- Real board photo as background -->
+                        <!-- none: estira para llenar el viewBox exacto, sin recortar -->
+                        <image href="../../sources/carcassonneok.jpg"
+                               width="600" height="420"
+                               preserveAspectRatio="none" />
+
+                        <!-- Subtle darkening overlay for better token visibility -->
+                        <rect width="600" height="420" fill="rgba(0,0,0,0.08)" />
+
+                        <!-- Cell numbers overlay -->
+                        <g id="cells-layer"></g>
+
+                        <!-- Player tokens (meeples) -->
+                        <g id="tokens-layer"></g>
+                    </svg>
+                </div>
+
+                <!-- Score Table -->
+                <div class="score-table-wrapper">
+                    <table class="score-table">
+                        <thead>
+                            <tr>
+                                <th colspan="2">Jugador</th>
+                                <th>Score</th>
+                                <th>Casilla</th>
+                                <th>Vuelta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="score-table-body">
+                            <!-- Rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Controls (right on wide screens) -->
+            <div class="controls" id="controls">
+            <!-- Player selection -->
+            <div class="control-section">
+                <div class="control-label">Jugador(es)</div>
+                <div class="player-chips" id="player-chips">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <!-- Event type -->
+            <div class="control-section">
+                <div class="control-label">Tipo</div>
+                <div class="type-buttons" id="type-buttons">
+                    <button class="type-btn active" data-type="CITY_COMPLETED">Ciudad</button>
+                    <button class="type-btn" data-type="ROAD_COMPLETED">Camino</button>
+                    <button class="type-btn" data-type="MONASTERY_COMPLETED">Monasterio</button>
+                    <button class="type-btn" data-type="MANUAL">Manual</button>
+                </div>
+            </div>
+
+            <!-- Points -->
+            <div class="control-section">
+                <div class="control-label">Puntos</div>
+                <div class="point-buttons" id="point-buttons">
+                    <button class="point-btn" data-points="1">+1</button>
+                    <button class="point-btn" data-points="2">+2</button>
+                    <button class="point-btn" data-points="3">+3</button>
+                    <button class="point-btn" data-points="4">+4</button>
+                    <button class="point-btn" data-points="5">+5</button>
+                    <button class="point-btn" data-points="8">+8</button>
+                    <button class="point-btn" data-points="9">+9</button>
+                    <button class="point-btn" data-points="10">+10</button>
+                    <div class="point-custom">
+                        <input type="number" id="custom-points" placeholder="Otro" min="1" max="999">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Note -->
+            <div class="control-section">
+                <input type="text" class="note-input" id="note-input"
+                       placeholder="Nota opcional (ej: ciudad del norte)" maxlength="100">
+            </div>
+
+            <!-- Submit -->
+            <div class="control-section">
+                <button class="btn-score" id="btn-score" disabled onclick="submitScore()">
+                    Anotar puntos
+                </button>
+            </div>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="action-bar">
+            <button class="btn-action" onclick="undoLast()">
+                <span class="icon">&#8630;</span>
+                Deshacer
+            </button>
+            <button class="btn-action" onclick="toggleHistory()">
+                <span class="icon">&#9776;</span>
+                Historial
+            </button>
+            <button class="btn-action danger" onclick="endGame()">
+                <span class="icon">&#9632;</span>
+                Terminar
+            </button>
+        </div>
+
+        <!-- History panel -->
+        <div class="history" id="history-panel">
+            <div class="history-header">
+                <span class="history-title">Historial de acciones</span>
+            </div>
+            <ul class="history-list" id="history-list">
+                <!-- Rendered by JS -->
+            </ul>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ══════════════════════════════════════════════
+        // Game State (prototype mock data)
+        // ══════════════════════════════════════════════
+
+        const COLORS = {
+            blue:   '#0055BF',
+            red:    '#CC0000',
+            green:  '#237F23',
+            yellow: '#F2CD00',
+            black:  '#555555',
+            pink:   '#FF69B4',
+        };
+
+        const TYPE_LABELS = {
+            ROAD_COMPLETED: 'Camino',
+            CITY_COMPLETED: 'Ciudad',
+            MONASTERY_COMPLETED: 'Monasterio',
+            ROAD_FINAL: 'Camino (final)',
+            CITY_FINAL: 'Ciudad (final)',
+            MONASTERY_FINAL: 'Monasterio (final)',
+            FARM_FINAL: 'Granja',
+            MANUAL: 'Manual',
+        };
+
+        let state = {
+            players: [
+                { id: 1, name: 'Adan',  color: 'blue',   score_total: 0, turn_order: 1 },
+                { id: 2, name: 'Pablo', color: 'red',    score_total: 0, turn_order: 2 },
+                { id: 3, name: 'Maria', color: 'green',  score_total: 0, turn_order: 3 },
+            ],
+            actions: [],
+            nextActionId: 1,
+        };
+
+        let selectedPlayers = new Set();
+        let selectedType = 'CITY_COMPLETED';
+        let selectedPoints = null;
+
+        // ══════════════════════════════════════════════
+        // Board — serpentine layout (50 cells)
+        // ══════════════════════════════════════════════
+
+        const BOARD_W = 600, BOARD_H = 420;
+        const CELL_W = 38, CELL_H = 28;
+
+        // Coordenadas mapeadas desde los puntos rojos de carcassonneok-point.jpg
+        // Imagen 2476x1693px, viewBox 600x420, preserveAspectRatio="none"
+        // Formula: x_vb = (x% / 100) * 600, y_vb = (y% / 100) * 420
+        const CELLS = [
+            // Bottom row: 0-7 (right to left)
+            { x: 528, y: 361 },  // 0
+            { x: 438, y: 365 },  // 1
+            { x: 360, y: 370 },  // 2
+            { x: 294, y: 365 },  // 3
+            { x: 228, y: 349 },  // 4
+            { x: 162, y: 336 },  // 5
+            { x: 108, y: 349 },  // 6
+            { x: 72,  y: 353 },  // 7
+
+            // Left column: 8-14 (bottom to top)
+            { x: 48,  y: 323 },  // 8
+            { x: 24,  y: 290 },  // 9
+            { x: 30,  y: 239 },  // 10
+            { x: 24,  y: 193 },  // 11
+            { x: 30,  y: 143 },  // 12
+            { x: 36,  y: 80  },  // 13
+            { x: 42,  y: 25  },  // 14
+
+            // Top row: 15-24 (left to right)
+            { x: 78,  y: 17  },  // 15
+            { x: 126, y: 17  },  // 16
+            { x: 168, y: 17  },  // 17
+            { x: 216, y: 21  },  // 18
+            { x: 258, y: 21  },  // 19
+            { x: 312, y: 21  },  // 20
+            { x: 360, y: 17  },  // 21
+            { x: 408, y: 17  },  // 22
+            { x: 456, y: 17  },  // 23
+            { x: 516, y: 17  },  // 24
+
+            // Right column: 25-27 (top to bottom)
+            { x: 546, y: 55  },  // 25
+            { x: 552, y: 97  },  // 26
+            { x: 534, y: 139 },  // 27
+
+            // Inner upper row: 28-35 (right to left)
+            { x: 468, y: 139 },  // 28
+            { x: 408, y: 134 },  // 29
+            { x: 348, y: 126 },  // 30
+            { x: 300, y: 118 },  // 31
+            { x: 258, y: 118 },  // 32
+            { x: 216, y: 113 },  // 33
+            { x: 168, y: 109 },  // 34
+            { x: 132, y: 109 },  // 35
+
+            // Inner turn: 36-37
+            { x: 108, y: 130 },  // 36
+            { x: 78,  y: 155 },  // 37
+
+            // Inner lower row: 38-46 (left to right)
+            { x: 102, y: 206 },  // 38
+            { x: 144, y: 210 },  // 39
+            { x: 192, y: 218 },  // 40
+            { x: 228, y: 218 },  // 41
+            { x: 276, y: 218 },  // 42
+            { x: 318, y: 218 },  // 43
+            { x: 360, y: 218 },  // 44
+            { x: 402, y: 210 },  // 45
+            { x: 444, y: 210 },  // 46
+
+            // Inner right column: 47-49
+            { x: 492, y: 193 },  // 47
+            { x: 510, y: 214 },  // 48
+            { x: 498, y: 256 },  // 49
+        ];
+
+        function renderBoard() {
+            // No overlay numbers — the board image already has the cell numbers.
+            // CELLS[] coordinates are used internally for token positioning only.
+            document.getElementById('cells-layer').innerHTML = '';
+        }
+
+        function renderTokens() {
+            const tokensLayer = document.getElementById('tokens-layer');
+            let html = '';
+
+            // Group players by cell for stacking
+            const cellGroups = {};
+            state.players.forEach(p => {
+                const cell = p.score_total % 50;
+                if (!cellGroups[cell]) cellGroups[cell] = [];
+                cellGroups[cell].push(p);
+            });
+
+            for (const [cell, players] of Object.entries(cellGroups)) {
+                const pos = CELLS[parseInt(cell)];
+                players.forEach((p, idx) => {
+                    const offset = getStackOffset(idx, players.length);
+                    const cx = pos.x + offset.dx;
+                    const cy = pos.y + offset.dy;
+                    const lap = Math.floor(p.score_total / 50);
+                    const needsDarkLabel = (p.color === 'yellow');
+
+                    // Meeple token with border
+                    html += `
+                        <g class="token-meeple" id="token-${p.id}"
+                           transform="translate(${cx}, ${cy})">
+                            <!-- White border (slightly larger) -->
+                            <use href="#meeple" class="token-border"
+                                 transform="scale(1.15)" />
+                            <!-- Colored fill -->
+                            <use href="#meeple" fill="${COLORS[p.color]}" />
+                            <!-- Initial letter -->
+                            <text x="0" y="1"
+                                  class="token-label ${needsDarkLabel ? 'token-label-dark' : ''}">
+                                ${p.name.charAt(0)}
+                            </text>
+                        </g>
+                    `;
+
+                    // Lap badge
+                    if (lap > 0) {
+                        const badgeText = `x${lap}`;
+                        html += `
+                            <g transform="translate(${cx + 8}, ${cy - 14})">
+                                <rect x="-9" y="-6" width="18" height="12"
+                                      rx="3" class="lap-badge-bg" />
+                                <text x="0" y="0" class="lap-badge">${badgeText}</text>
+                            </g>
+                        `;
+                    }
+                });
+            }
+
+            tokensLayer.innerHTML = html;
+        }
+
+        function getStackOffset(index, total) {
+            if (total === 1) return { dx: 0, dy: 0 };
+            const angle = (2 * Math.PI * index) / total - Math.PI / 2;
+            const radius = total <= 3 ? 13 : 15;
+            return {
+                dx: Math.cos(angle) * radius,
+                dy: Math.sin(angle) * radius,
+            };
+        }
+
+        // ══════════════════════════════════════════════
+        // Score Table
+        // ══════════════════════════════════════════════
+
+        function renderScoreTable() {
+            const tbody = document.getElementById('score-table-body');
+            const sorted = [...state.players].sort((a, b) => b.score_total - a.score_total);
+
+            tbody.innerHTML = sorted.map(p => {
+                const cell = p.score_total % 50;
+                const lap = Math.floor(p.score_total / 50);
+                const isSelected = selectedPlayers.has(p.id);
+                return `
+                    <tr class="${isSelected ? 'selected-player' : ''}"
+                        onclick="togglePlayer(${p.id})">
+                        <td>
+                            <span class="player-dot" style="background:${COLORS[p.color]}"></span>
+                        </td>
+                        <td>${p.name}</td>
+                        <td class="score-value" id="score-val-${p.id}">${p.score_total}</td>
+                        <td class="cell-value">${cell}</td>
+                        <td class="lap-value">${lap > 0 ? 'x' + lap : '--'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ══════════════════════════════════════════════
+        // Controls
+        // ══════════════════════════════════════════════
+
+        function renderPlayerChips() {
+            const container = document.getElementById('player-chips');
+            container.innerHTML = state.players.map(p => `
+                <div class="player-chip ${selectedPlayers.has(p.id) ? 'active' : ''}"
+                     onclick="togglePlayer(${p.id})">
+                    <span class="chip-dot" style="background:${COLORS[p.color]}"></span>
+                    ${p.name}
+                </div>
+            `).join('');
+        }
+
+        function togglePlayer(id) {
+            if (selectedPlayers.has(id)) {
+                selectedPlayers.delete(id);
+            } else {
+                selectedPlayers.add(id);
+            }
+            renderPlayerChips();
+            renderScoreTable();
+            updateSubmitButton();
+        }
+
+        // Type buttons
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedType = btn.dataset.type;
+            });
+        });
+
+        // Point buttons
+        document.querySelectorAll('.point-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.point-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPoints = parseInt(btn.dataset.points);
+                document.getElementById('custom-points').value = '';
+                updateSubmitButton();
+            });
+        });
+
+        document.getElementById('custom-points').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            document.querySelectorAll('.point-btn').forEach(b => b.classList.remove('active'));
+            selectedPoints = val > 0 ? val : null;
+            updateSubmitButton();
+        });
+
+        function updateSubmitButton() {
+            const btn = document.getElementById('btn-score');
+            const canSubmit = selectedPlayers.size > 0 && selectedPoints > 0;
+            btn.disabled = !canSubmit;
+
+            if (canSubmit) {
+                const names = [...selectedPlayers].map(id =>
+                    state.players.find(p => p.id === id).name
+                ).join(', ');
+                btn.textContent = `Anotar +${selectedPoints} a ${names}`;
+            } else {
+                btn.textContent = 'Anotar puntos';
+            }
+        }
+
+        // ══════════════════════════════════════════════
+        // Submit Score
+        // ══════════════════════════════════════════════
+
+        function submitScore() {
+            if (selectedPlayers.size === 0 || !selectedPoints) return;
+
+            const entries = [];
+            selectedPlayers.forEach(pid => {
+                const player = state.players.find(p => p.id === pid);
+                const before = player.score_total;
+                player.score_total += selectedPoints;
+                entries.push({
+                    player_id: pid,
+                    points: selectedPoints,
+                    score_before: before,
+                    score_after: player.score_total,
+                });
+            });
+
+            const action = {
+                id: state.nextActionId++,
+                event_type: selectedType,
+                entries: entries,
+                description: document.getElementById('note-input').value || null,
+                is_undone: false,
+                created_at: new Date(),
+            };
+
+            state.actions.push(action);
+
+            // Reset controls
+            document.getElementById('note-input').value = '';
+            selectedPlayers.clear();
+            selectedPoints = null;
+            document.querySelectorAll('.point-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('custom-points').value = '';
+
+            // Re-render everything
+            renderAll();
+            showToast(`+${entries[0].points} ${TYPE_LABELS[selectedType]}`);
+        }
+
+        // ══════════════════════════════════════════════
+        // Undo
+        // ══════════════════════════════════════════════
+
+        function undoLast() {
+            const activeActions = state.actions.filter(a => !a.is_undone);
+            if (activeActions.length === 0) {
+                showToast('Nada que deshacer', true);
+                return;
+            }
+
+            const last = activeActions[activeActions.length - 1];
+            last.is_undone = true;
+
+            // Recalculate all affected players from active entries
+            const affectedIds = new Set(last.entries.map(e => e.player_id));
+            affectedIds.forEach(pid => {
+                const player = state.players.find(p => p.id === pid);
+                player.score_total = state.actions
+                    .filter(a => !a.is_undone)
+                    .flatMap(a => a.entries)
+                    .filter(e => e.player_id === pid)
+                    .reduce((sum, e) => sum + e.points, 0);
+            });
+
+            renderAll();
+            showToast('Accion deshecha');
+        }
+
+        // ══════════════════════════════════════════════
+        // History
+        // ══════════════════════════════════════════════
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            const reversed = [...state.actions].reverse();
+
+            if (reversed.length === 0) {
+                list.innerHTML = '<li class="history-item" style="color:var(--text-muted); justify-content:center">Sin acciones todavia</li>';
+                return;
+            }
+
+            list.innerHTML = reversed.map(action => {
+                const playerEntries = action.entries.map(e => {
+                    const p = state.players.find(pl => pl.id === e.player_id);
+                    return `<span style="color:${COLORS[p.color]}">${p.name}</span> +${e.points}`;
+                }).join(', ');
+
+                const time = action.created_at.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <li class="history-item ${action.is_undone ? 'undone' : ''}">
+                        <span class="history-number">#${action.id}</span>
+                        <div class="history-content">
+                            <span class="history-type">${TYPE_LABELS[action.event_type]}: </span>
+                            <span class="history-players">${playerEntries}</span>
+                            ${action.description ? `<div class="history-note">${action.description}</div>` : ''}
+                        </div>
+                        <span class="history-time">${time}</span>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        function toggleHistory() {
+            const panel = document.getElementById('history-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // ══════════════════════════════════════════════
+        // Toast
+        // ══════════════════════════════════════════════
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.background = isError ? 'var(--danger)' : 'var(--success)';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1800);
+        }
+
+        function endGame() {
+            showToast('Funcionalidad en desarrollo');
+        }
+
+        // ══════════════════════════════════════════════
+        // Render all
+        // ══════════════════════════════════════════════
+
+        function renderAll() {
+            renderBoard();
+            renderTokens();
+            renderScoreTable();
+            renderPlayerChips();
+            renderHistory();
+            updateSubmitButton();
+        }
+
+        // Initial render
+        renderAll();
+    </script>
+</body>
+</html>
