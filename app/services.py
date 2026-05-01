@@ -209,3 +209,129 @@ def recalculate_score(session: Session, player_id: int) -> int:
     player.score_total = total
     session.flush()
     return total
+
+
+# ── Game lifecycle ──────────────────────────────────────────
+
+
+def create_game(session: Session, name: str) -> Game:
+    """Create a new game in 'setup' status.
+
+    Args:
+        session: Database session.
+        name: Display name for the game.
+
+    Returns:
+        The created Game.
+    """
+    game = Game(name=name, status="setup")
+    session.add(game)
+    session.commit()
+    session.refresh(game)
+    return game
+
+
+def add_player(
+    session: Session, game_id: int, name: str, color: str
+) -> Player:
+    """Add a player to a game that is in setup status.
+
+    Args:
+        session: Database session.
+        game_id: The game to add the player to.
+        name: Player display name.
+        color: Player color key (e.g. 'blue', 'red').
+
+    Returns:
+        The created Player.
+
+    Raises:
+        ValueError: If game is not in setup, or already has 6 players.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status != "setup":
+        raise ValueError("Can only add players during setup")
+
+    existing = session.exec(
+        select(func.count(Player.id)).where(Player.game_id == game_id)
+    ).one()
+    if existing >= 6:
+        raise ValueError("Maximum 6 players per game")
+
+    turn_order = existing + 1
+    player = Player(
+        game_id=game_id, name=name, color=color, turn_order=turn_order
+    )
+    session.add(player)
+    session.commit()
+    session.refresh(player)
+    return player
+
+
+def remove_player(session: Session, game_id: int, player_id: int) -> None:
+    """Remove a player from a game in setup status and reorder remaining.
+
+    Args:
+        session: Database session.
+        game_id: The game the player belongs to.
+        player_id: The player to remove.
+
+    Raises:
+        ValueError: If game is not in setup or player not found.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status != "setup":
+        raise ValueError("Can only remove players during setup")
+
+    player = session.get(Player, player_id)
+    if player is None or player.game_id != game_id:
+        raise ValueError(f"Player {player_id} not found in game {game_id}")
+
+    session.delete(player)
+    session.flush()
+
+    # Reorder remaining players sequentially
+    remaining = session.exec(
+        select(Player)
+        .where(Player.game_id == game_id)
+        .order_by(Player.turn_order)
+    ).all()
+    for i, p in enumerate(remaining, start=1):
+        p.turn_order = i
+
+    session.commit()
+
+
+def start_game(session: Session, game_id: int) -> Game:
+    """Transition a game from setup to playing status.
+
+    Args:
+        session: Database session.
+        game_id: The game to start.
+
+    Returns:
+        The updated Game.
+
+    Raises:
+        ValueError: If game is not in setup or has fewer than 2 players.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status != "setup":
+        raise ValueError("Can only start a game in setup status")
+
+    player_count = session.exec(
+        select(func.count(Player.id)).where(Player.game_id == game_id)
+    ).one()
+    if player_count < 2:
+        raise ValueError("Need at least 2 players to start")
+
+    game.status = "playing"
+    session.commit()
+    session.refresh(game)
+    return game

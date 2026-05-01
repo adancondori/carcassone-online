@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Nueva Partida — Carcassonne{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Carcassonne</h1>
+        <p>Tablero de Puntuacion</p>
+    </div>
+
+    {% if not game %}
+    <!-- Step 1: Create game -->
+    <div class="card">
+        <div class="card-title">Nueva Partida</div>
+        <form method="post" action="/games">
+            <div class="input-group">
+                <label for="game-name">Nombre de la partida</label>
+                <input type="text" id="game-name" name="name"
+                       placeholder="Ej: Partida del sabado" required autofocus>
+            </div>
+            <button type="submit" class="btn btn-primary">Crear partida</button>
+        </form>
+    </div>
+    {% else %}
+    <!-- Step 2: Add players -->
+    <div class="card">
+        <div class="card-title">{{ game.name }} — Jugadores</div>
+
+        {% if available_colors %}
+        <!-- Color selector -->
+        <div class="color-selector">
+            {% for color_key, color_info in available_colors.items() %}
+            <label class="color-option{% if loop.first %} selected{% endif %}"
+                   style="background: {{ color_info.hex }}{% if color_key == 'black' %}; border: 2px solid #708aab{% endif %}">
+                <input type="radio" name="color-radio" value="{{ color_key }}"
+                       {% if loop.first %}checked{% endif %}
+                       style="display: none">
+            </label>
+            {% endfor %}
+        </div>
+
+        <!-- Add player form -->
+        <form method="post" action="/games/{{ game.id }}/players" class="add-player-form">
+            <div class="input-group">
+                <input type="text" name="name" placeholder="Nombre del jugador"
+                       maxlength="20" required>
+            </div>
+            <input type="hidden" name="color" id="selected-color" value="">
+            <button type="submit" class="btn btn-add">Agregar</button>
+        </form>
+        {% endif %}
+
+        <!-- Player list -->
+        <ul class="player-list">
+            {% if players %}
+                {% for player in players %}
+                <li class="player-item">
+                    <span class="player-order">{{ loop.index }}</span>
+                    <div class="player-color meeple-dot"
+                         style="background: {{ PLAYER_COLORS[player.color].hex }}"></div>
+                    <span class="player-name">{{ player.name }}</span>
+                    <form method="post"
+                          action="/games/{{ game.id }}/players/{{ player.id }}/delete"
+                          style="display:inline">
+                        <button type="submit" class="player-remove"
+                                title="Quitar jugador">&times;</button>
+                    </form>
+                </li>
+                {% endfor %}
+            {% else %}
+                <li class="empty-state">
+                    Agrega entre 2 y 6 jugadores para comenzar
+                </li>
+            {% endif %}
+        </ul>
+        <div class="player-count">
+            {% if players %}{{ players|length }}/6 jugadores{% endif %}
+        </div>
+    </div>
+
+    <!-- Start button -->
+    <div class="start-section">
+        <form method="post" action="/games/{{ game.id }}/start">
+            <button type="submit" class="btn btn-primary"
+                    {% if players|length < 2 %}disabled{% endif %}>
+                Iniciar Partida
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Color selector: update hidden input when a color radio is clicked
+    document.querySelectorAll('.color-option input[type="radio"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            document.getElementById('selected-color').value = radio.value;
+            // Update visual selection
+            document.querySelectorAll('.color-option').forEach(function(opt) {
+                opt.classList.remove('selected');
+            });
+            radio.closest('.color-option').classList.add('selected');
+        });
+    });
+    // Initialize: select first available color
+    var firstRadio = document.querySelector('.color-option input[type="radio"]:checked');
+    if (firstRadio) {
+        document.getElementById('selected-color').value = firstRadio.value;
+        firstRadio.closest('.color-option').classList.add('selected');
+    }
+</script>
+{% endblock %}

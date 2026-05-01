@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ game.name }} — Carcassonne{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>Carcassonne</h1>
+        <p>{{ game.name }}</p>
+    </div>
+    <div class="card">
+        <div class="card-title">Dashboard coming in 02-02</div>
+        <p>Game <strong>{{ game.name }}</strong> is now in <strong>{{ game.status }}</strong> status.</p>
+        <ul class="player-list" style="margin-top: 12px;">
+            {% for player in players %}
+            <li class="player-item">
+                <div class="player-color meeple-dot"
+                     style="background: {{ PLAYER_COLORS[player.color].hex }}"></div>
+                <span class="player-name">{{ player.name }}</span>
+                <span class="player-order">{{ player.score_total }} pts</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
