@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-05-01)
 ## Current Position
 
 Phase: 2 of 5 (Web UI)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-05-01 - Completed 02-01-PLAN.md (Web Infrastructure & Setup Page)
+Last activity: 2026-05-01 - Completed 02-02-PLAN.md (Scoring Dashboard)
 
-Progress: [██████░░░░] ~67% (4/6 planned)
+Progress: [████████░░] ~83% (5/6 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 4min
-- Total execution time: 14min
+- Total execution time: 19min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 9min | 3min |
-| 02-web-ui | 1/3 | 5min | 5min |
+| 02-web-ui | 2/3 | 10min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min), 01-03 (2min), 01-02 (3min), 02-01 (5min)
+- Last 5 plans: 01-03 (2min), 01-02 (3min), 02-01 (5min), 02-02 (5min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -57,6 +57,9 @@ Recent decisions affecting current work:
 - [02-01]: All web routes use sync def (not async def) for sync SQLModel sessions
 - [02-01]: PRG pattern with 303 redirects for all POST routes
 - [02-01]: Service errors caught silently in routes; redirect back shows current state
+- [02-02]: OOB pattern: score_table primary target (no oob) + controls/action_bar as oob=true secondary targets
+- [02-02]: _render_dashboard_fragments() helper for DRY multi-fragment responses shared by score and undo routes
+- [02-02]: Annotated[list[int], Form()] for multi-value checkbox form fields in FastAPI
 
 ### Pending Todos
 
@@ -68,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-01T23:47Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-05-01T23:54Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
