@@ -1,0 +1,8 @@
+.git
+__pycache__
+*.pyc
+data/
+.venv/
+.pytest_cache/
+.planning/
+*.egg-info/
