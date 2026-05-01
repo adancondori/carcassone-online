@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "carcassonne-scoreboard"
+version = "0.1.0"
+description = "A web-based scoring tracker for the board game Carcassonne"
+requires-python = ">=3.12"
+dependencies = [
+    "sqlmodel~=0.0.38",
+    "fastapi~=0.136.1",
+    "uvicorn[standard]~=0.46.0",
+    "pydantic-settings~=2.14.0",
+    "alembic~=1.18.4",
+    "jinja2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=9.0.3",
+    "pytest-cov~=7.1.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
