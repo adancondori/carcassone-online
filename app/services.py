@@ -4,9 +4,10 @@ Core operations: add_score, undo_last, rollback_to, recalculate_score.
 All functions take a Session as first argument for explicit transaction control.
 """
 
-from sqlmodel import Session
+from sqlalchemy import func
+from sqlmodel import Session, select
 
-from app.models import ScoreAction
+from app.models import Player, ScoreAction, ScoreEntry
 
 
 def add_score(
@@ -31,7 +32,33 @@ def add_score(
     Raises:
         ValueError: If a player_id does not exist.
     """
-    raise NotImplementedError
+    action = ScoreAction(
+        game_id=game_id,
+        event_type=event_type,
+        description=description,
+    )
+    session.add(action)
+    session.flush()  # Get action.id without committing
+
+    for player_id, points in player_points:
+        player = session.get(Player, player_id)
+        if player is None:
+            raise ValueError(f"Player {player_id} not found")
+
+        score_before = player.score_total
+        player.score_total += points
+
+        entry = ScoreEntry(
+            action_id=action.id,
+            player_id=player_id,
+            points=points,
+            score_before=score_before,
+            score_after=player.score_total,
+        )
+        session.add(entry)
+
+    session.commit()
+    return action
 
 
 def undo_last(session: Session, game_id: int) -> ScoreAction | None:
@@ -44,7 +71,29 @@ def undo_last(session: Session, game_id: int) -> ScoreAction | None:
     Returns:
         The undone ScoreAction, or None if no active actions exist.
     """
-    raise NotImplementedError
+    statement = (
+        select(ScoreAction)
+        .where(ScoreAction.game_id == game_id)
+        .where(ScoreAction.is_undone == False)  # noqa: E712
+        .order_by(ScoreAction.id.desc())
+        .limit(1)
+    )
+    last_action = session.exec(statement).first()
+    if last_action is None:
+        return None
+
+    last_action.is_undone = True
+
+    # Recalculate all affected players from entries
+    entries = session.exec(
+        select(ScoreEntry).where(ScoreEntry.action_id == last_action.id)
+    ).all()
+    affected_player_ids = {e.player_id for e in entries}
+    for pid in affected_player_ids:
+        recalculate_score(session, pid)
+
+    session.commit()
+    return last_action
 
 
 def rollback_to(session: Session, game_id: int, action_id: int) -> int:
@@ -58,7 +107,30 @@ def rollback_to(session: Session, game_id: int, action_id: int) -> int:
     Returns:
         Number of actions that were undone.
     """
-    raise NotImplementedError
+    statement = (
+        select(ScoreAction)
+        .where(ScoreAction.game_id == game_id)
+        .where(ScoreAction.id > action_id)
+        .where(ScoreAction.is_undone == False)  # noqa: E712
+    )
+    actions = session.exec(statement).all()
+    if not actions:
+        return 0
+
+    affected_player_ids: set[int] = set()
+    for action in actions:
+        action.is_undone = True
+        entries = session.exec(
+            select(ScoreEntry).where(ScoreEntry.action_id == action.id)
+        ).all()
+        for entry in entries:
+            affected_player_ids.add(entry.player_id)
+
+    for pid in affected_player_ids:
+        recalculate_score(session, pid)
+
+    session.commit()
+    return len(actions)
 
 
 def recalculate_score(session: Session, player_id: int) -> int:
@@ -74,4 +146,14 @@ def recalculate_score(session: Session, player_id: int) -> int:
     Returns:
         The recalculated score total.
     """
-    raise NotImplementedError
+    total = session.exec(
+        select(func.coalesce(func.sum(ScoreEntry.points), 0))
+        .join(ScoreAction, ScoreEntry.action_id == ScoreAction.id)
+        .where(ScoreEntry.player_id == player_id)
+        .where(ScoreAction.is_undone == False)  # noqa: E712
+    ).one()
+
+    player = session.get(Player, player_id)
+    player.score_total = total
+    session.flush()
+    return total
