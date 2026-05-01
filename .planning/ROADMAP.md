@@ -47,11 +47,12 @@ Plans:
   3. Score table updates via HTMX without page reload, showing all players ranked by total score with name, color, score, cell, and lap
   4. Undo button reverses the last complete scoring action (including shared actions) and the score table reflects the corrected totals immediately
   5. Dashboard is usable on a mobile phone screen (touch targets >= 48px, no horizontal scroll)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md — Web infrastructure, template engine, static files, CSS, and setup page (create game, add/remove players, start)
+- [ ] 02-02-PLAN.md — Scoring dashboard with HTMX fragments, scoring controls, undo, and controls.js
+- [ ] 02-03-PLAN.md — Web integration tests and visual verification checkpoint
 
 ### Phase 3: History and Rollback
 **Goal**: Users can see the full scoring history and roll back to any previous point in the game
