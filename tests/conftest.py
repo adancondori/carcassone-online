@@ -5,11 +5,14 @@ globally before any engine is created.
 """
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 import app.db  # noqa: F401 -- registers pragma event listener
 
+from app.db import get_session
+from app.main import app
 from app.models import Game, Player
 
 
@@ -54,3 +57,16 @@ def game_with_players_fixture(session):
     session.refresh(bob)
 
     return game, [alice, bob]
+
+
+@pytest.fixture(name="client")
+def client_fixture(session):
+    """TestClient that uses the test session (in-memory SQLite)."""
+
+    def override_get_session():
+        yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
