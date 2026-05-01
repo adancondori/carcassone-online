@@ -1,20 +1,75 @@
 """Web routes for Carcassonne Scoreboard setup and game management."""
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session
 
 from app.db import get_session
 from app.services import (
     add_player,
+    add_score,
     create_game,
     get_game_state,
     remove_player,
     start_game,
+    undo_last,
 )
 from app.web.dependencies import PLAYER_COLORS, templates
 
 router = APIRouter()
+
+
+# ── Helpers ──────────────────────────────────────────────────
+
+
+def _render_dashboard_fragments(
+    request: Request, session: Session, game_id: int
+) -> HTMLResponse:
+    """Render score_table + OOB controls + OOB action_bar as a single response.
+
+    Used by both score and undo routes to return multi-fragment HTMX updates.
+    The primary target is the score_table (no oob attribute). Controls and
+    action_bar are out-of-band swaps (oob=True).
+    """
+    game_state = get_game_state(session, game_id)
+    all_players = sorted(game_state.players, key=lambda p: p.turn_order)
+
+    base_context = {
+        "request": request,
+        "game": game_state.game,
+        "players": game_state.players,
+        "all_players": all_players,
+        "PLAYER_COLORS": PLAYER_COLORS,
+        "has_actions": game_state.action_count > 0,
+    }
+
+    # Primary target: score table (no oob attribute)
+    score_html = templates.TemplateResponse(
+        "dashboard.html",
+        {**base_context, "oob": False},
+        block_name="score_table",
+    ).body.decode()
+
+    # OOB: controls (resets form to clean state)
+    controls_html = templates.TemplateResponse(
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="controls",
+    ).body.decode()
+
+    # OOB: action bar (undo button enabled/disabled state)
+    action_bar_html = templates.TemplateResponse(
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="action_bar",
+    ).body.decode()
+
+    return HTMLResponse(content=score_html + controls_html + action_bar_html)
+
+
+# ── Setup routes ─────────────────────────────────────────────
 
 
 @router.get("/games/new")
@@ -121,13 +176,16 @@ def start_game_route(
     return RedirectResponse(url=f"/games/{game_id}", status_code=303)
 
 
+# ── Dashboard routes ─────────────────────────────────────────
+
+
 @router.get("/games/{game_id}")
 def game_dashboard(
     request: Request,
     game_id: int,
     session: Session = Depends(get_session),
 ):
-    """Game dashboard page (stub -- full implementation in 02-02)."""
+    """Render the full game dashboard page."""
     game_state = get_game_state(session, game_id)
 
     # If still in setup, redirect there
@@ -136,13 +194,52 @@ def game_dashboard(
             url=f"/games/{game_id}/setup", status_code=303
         )
 
+    all_players = sorted(game_state.players, key=lambda p: p.turn_order)
+
     return templates.TemplateResponse(
-        "dashboard_stub.html",
+        "dashboard.html",
         {
             "request": request,
             "game": game_state.game,
             "players": game_state.players,
+            "all_players": all_players,
             "PLAYER_COLORS": PLAYER_COLORS,
             "has_actions": game_state.action_count > 0,
+            "oob": False,
         },
     )
+
+
+@router.post("/games/{game_id}/score")
+def score_action(
+    request: Request,
+    game_id: int,
+    player_ids: Annotated[list[int], Form()],
+    points: int = Form(...),
+    event_type: str = Form(...),
+    description: str = Form(None),
+    session: Session = Depends(get_session),
+):
+    """Score points for selected players and return HTMX fragments."""
+    try:
+        player_points = [(pid, points) for pid in player_ids]
+        add_score(session, game_id, player_points, event_type, description)
+    except ValueError:
+        pass  # Service errors handled silently; fragments show current state
+
+    return _render_dashboard_fragments(request, session, game_id)
+
+
+@router.post("/games/{game_id}/undo")
+def undo_action(
+    request: Request,
+    game_id: int,
+    session: Session = Depends(get_session),
+):
+    """Undo the last scoring action and return HTMX fragments."""
+    try:
+        undo_last(session, game_id)
+    except ValueError:
+        pass  # No active actions to undo; fragments show current state
+
+    return _render_dashboard_fragments(request, session, game_id)

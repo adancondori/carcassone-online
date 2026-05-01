@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}{{ game.name }} — Carcassonne{% endblock %}
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="header-dashboard">
+        <div>
+            <div class="header-title">Carcassonne</div>
+            <div class="header-game">{{ game.name }}</div>
+        </div>
+        <div class="header-status">En juego</div>
+    </div>
+
+    <div class="main-workspace">
+        <div class="main-column">
+            <!-- Score Table Block -->
+            {% block score_table %}
+            <div id="score-table" class="score-table-wrapper"
+                 {% if oob %}hx-swap-oob="true"{% endif %}>
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2">Jugador</th>
+                            <th>Score</th>
+                            <th>Casilla</th>
+                            <th>Vuelta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                        <tr>
+                            <td><span class="player-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span></td>
+                            <td>{{ player.name }}</td>
+                            <td class="score-value">{{ player.score_total }}</td>
+                            <td class="cell-value">{{ player.current_cell }}</td>
+                            <td class="lap-value">{{ "x" ~ player.lap if player.lap > 0 else "--" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endblock %}
+        </div>
+
+        <!-- Controls Block -->
+        {% block controls %}
+        <div id="controls" class="controls"
+             {% if oob %}hx-swap-oob="true"{% endif %}>
+            <form id="score-form"
+                  hx-post="/games/{{ game.id }}/score"
+                  hx-target="#score-table"
+                  hx-swap="outerHTML">
+
+                <!-- Player selection (checkboxes) -->
+                <div class="control-section">
+                    <div class="control-label">Jugador(es)</div>
+                    <div class="player-chips">
+                        {% for player in all_players %}
+                        <label class="player-chip" data-player-id="{{ player.id }}">
+                            <input type="checkbox" name="player_ids" value="{{ player.id }}" style="display:none">
+                            <span class="chip-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span>
+                            {{ player.name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Event type (radio buttons) -->
+                <div class="control-section">
+                    <div class="control-label">Tipo</div>
+                    <div class="type-buttons">
+                        <label class="type-btn active">
+                            <input type="radio" name="event_type" value="CITY_COMPLETED" checked style="display:none">
+                            Ciudad
+                        </label>
+                        <label class="type-btn">
+                            <input type="radio" name="event_type" value="ROAD_COMPLETED" style="display:none">
+                            Camino
+                        </label>
+                        <label class="type-btn">
+                            <input type="radio" name="event_type" value="MONASTERY_COMPLETED" style="display:none">
+                            Monasterio
+                        </label>
+                        <label class="type-btn">
+                            <input type="radio" name="event_type" value="MANUAL" style="display:none">
+                            Manual
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Points -->
+                <div class="control-section">
+                    <div class="control-label">Puntos</div>
+                    <div class="point-buttons">
+                        <button type="button" class="point-btn" data-points="1">+1</button>
+                        <button type="button" class="point-btn" data-points="2">+2</button>
+                        <button type="button" class="point-btn" data-points="3">+3</button>
+                        <button type="button" class="point-btn" data-points="4">+4</button>
+                        <button type="button" class="point-btn" data-points="5">+5</button>
+                        <button type="button" class="point-btn" data-points="8">+8</button>
+                        <button type="button" class="point-btn" data-points="9">+9</button>
+                        <button type="button" class="point-btn" data-points="10">+10</button>
+                        <div class="point-custom">
+                            <input type="number" id="custom-points" placeholder="Otro" min="1" max="999">
+                        </div>
+                    </div>
+                    <!-- Hidden input holds the actual points value submitted -->
+                    <input type="hidden" name="points" id="points-input" value="">
+                </div>
+
+                <!-- Note -->
+                <div class="control-section">
+                    <input type="text" class="note-input" name="description"
+                           placeholder="Nota opcional (ej: ciudad del norte)" maxlength="100">
+                </div>
+
+                <!-- Submit -->
+                <div class="control-section">
+                    <button type="submit" class="btn-score" id="btn-score" disabled>
+                        Anotar puntos
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% endblock %}
+    </div>
+
+    <!-- Action Bar Block -->
+    {% block action_bar %}
+    <div id="action-bar" class="action-bar"
+         {% if oob %}hx-swap-oob="true"{% endif %}>
+        <button class="btn-action"
+                hx-post="/games/{{ game.id }}/undo"
+                hx-target="#score-table"
+                hx-swap="outerHTML"
+                {% if not has_actions %}disabled{% endif %}>
+            <span class="icon">&#8630;</span>
+            Deshacer
+        </button>
+    </div>
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/controls.js"></script>
+{% endblock %}
