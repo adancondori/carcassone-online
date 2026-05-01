@@ -1,13 +1,65 @@
-"""Scoring service functions for Carcassonne Scoreboard.
+"""Service functions for Carcassonne Scoreboard.
 
 Core operations: add_score, undo_last, rollback_to, recalculate_score.
+Game lifecycle: create_game, add_player, remove_player, start_game.
+Query helpers: get_game_state.
+
 All functions take a Session as first argument for explicit transaction control.
 """
+
+from dataclasses import dataclass
 
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from app.models import Player, ScoreAction, ScoreEntry
+from app.models import Game, Player, ScoreAction, ScoreEntry
+
+
+# Color hex map for template lookups (avoids circular import with web.dependencies).
+COLOR_HEX_MAP = {
+    "blue": "#0055BF", "red": "#CC0000", "green": "#237F23",
+    "yellow": "#F2CD00", "black": "#1A1A1A", "pink": "#FF69B4",
+}
+
+
+@dataclass
+class GameState:
+    """Snapshot of a game's current state for template rendering."""
+    game: Game
+    players: list[Player]
+    action_count: int
+
+
+def get_game_state(session: Session, game_id: int) -> GameState:
+    """Load game, ranked players, and active action count.
+
+    Args:
+        session: Database session.
+        game_id: The game to load.
+
+    Returns:
+        GameState with game, players sorted by score_total DESC, action count.
+
+    Raises:
+        ValueError: If game_id does not exist.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+
+    players = session.exec(
+        select(Player)
+        .where(Player.game_id == game_id)
+        .order_by(Player.score_total.desc(), Player.turn_order)
+    ).all()
+
+    action_count = session.exec(
+        select(func.count(ScoreAction.id))
+        .where(ScoreAction.game_id == game_id)
+        .where(ScoreAction.is_undone == False)  # noqa: E712
+    ).one()
+
+    return GameState(game=game, players=list(players), action_count=action_count)
 
 
 def add_score(
