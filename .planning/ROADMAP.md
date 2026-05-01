@@ -30,11 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `add_score()` correctly updates player.score_total and creates action+entries atomically for both single-player and shared scoring
   4. `undo_last()` and `rollback_to()` recalculate scores from active entries (not from score_before), and recalculated totals always match the cache
   5. pytest suite passes covering models (current_cell, lap), services (add, undo, rollback, shared scoring, recalculate), and property-based tests for cache consistency
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Project structure, models, DB layer, and model tests
+- [ ] 01-02-PLAN.md — Service functions (add_score, undo, rollback, recalculate) via TDD
+- [ ] 01-03-PLAN.md — Alembic migrations, FastAPI app shell, and Docker configuration
 
 ### Phase 2: Web UI
 **Goal**: Users can create a game, add players, score points, and see results in a browser -- the first end-to-end playable version
