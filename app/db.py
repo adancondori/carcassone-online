@@ -1,13 +1,17 @@
 from collections.abc import Generator
 
-from sqlalchemy import event
+from sqlalchemy import Engine, event
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import settings
 
 
+@event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     """Set SQLite pragmas on every new connection.
+
+    Registered on the Engine class (not an instance) so that ALL engines
+    -- including test engines -- get these pragmas applied.
 
     - journal_mode=WAL: concurrent reads during writes
     - synchronous=NORMAL: safe with WAL, better performance
@@ -29,8 +33,6 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     echo=False,
 )
-
-event.listen(engine, "connect", set_sqlite_pragma)
 
 
 def create_db_and_tables() -> None:
