@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** Players can accurately track scores during a Carcassonne game with undo capability, so mistakes at the table are never permanent.
-**Current focus:** Phase 5 - Game States (in progress)
+**Current focus:** Project complete -- all 5 phases delivered
 
 ## Current Position
 
 Phase: 5 of 5 (Game States)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-05-02 - Completed 05-01-PLAN.md (State transitions & event-type enforcement)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-05-02 - Completed 05-02-PLAN.md (Web layer game state integration)
 
-Progress: [███████████████████░] 95% (11/12 planned)
+Progress: [████████████████████] 100% (12/12 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 3min
-- Total execution time: 36min
+- Total execution time: 40min
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [███████████████████░] 95% (11
 | 02-web-ui | 3/3 | 12min | 4min |
 | 03-history-and-rollback | 2/2 | 4min | 2min |
 | 04-svg-board | 2/2 | 8min | 4min |
-| 05-game-states | 1/2 | 3min | 3min |
+| 05-game-states | 2/2 | 7min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (2min), 03-02 (2min), 04-01 (3min), 04-02 (5min), 05-01 (3min)
+- Last 5 plans: 03-02 (2min), 04-01 (3min), 04-02 (5min), 05-01 (3min), 05-02 (4min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -76,6 +76,8 @@ Recent decisions affecting current work:
 - [04-02]: All 50 BOARD_CELLS recalibrated from red-dot reference image (automated detection + manual fix for cells 36-37)
 - [05-01]: Event type constants as frozensets at module level for O(1) membership checks and cross-module import
 - [05-01]: Game lookup added to add_score/undo_last/rollback_to for state validation (previously had no game awareness)
+- [05-02]: PLAYING_EVENT_TYPE_LABELS and SCORING_EVENT_TYPE_LABELS as filtered dicts for state-conditional template rendering
+- [05-02]: Transition block as 6th OOB fragment in _render_dashboard_fragments
 
 ### Pending Todos
 
@@ -87,6 +89,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-02T01:35Z
-Stopped at: Completed 05-01-PLAN.md (State transitions & event-type enforcement)
+Last session: 2026-05-02T01:41Z
+Stopped at: Completed 05-02-PLAN.md (Web layer game state integration) -- PROJECT COMPLETE
 Resume file: None
