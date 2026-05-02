@@ -63,10 +63,11 @@ Plans:
   2. User can tap any past action to rollback, and all subsequent actions are marked undone with scores recalculated
   3. Undone actions remain visible in the history list but are visually struck through
   4. History updates via HTMX alongside the score table after every score, undo, or rollback operation (OOB fragment consistency)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — History panel UI, rollback route, OOB wiring, and CSS styles
+- [ ] 03-02-PLAN.md — Integration tests for history display and rollback
 
 ### Phase 4: SVG Board
 **Goal**: Users see their meeple tokens moving around a visual replica of the physical Carcassonne scoring track
@@ -78,10 +79,11 @@ Plans:
   3. When multiple players share a cell, tokens stack with radial offset so all are visible
   4. Lap badge (x1, x2, x3...) appears on tokens for players who have passed cell 49
   5. Board is responsive on mobile phones -- scales correctly without horizontal scroll or clipped tokens
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Board SVG implementation: image, template block, CSS, OOB wiring, and token rendering
+- [ ] 04-02-PLAN.md — Integration tests for board and visual verification checkpoint
 
 ### Phase 5: Game States
 **Goal**: The game follows a clear lifecycle from setup through final scoring to a finished results screen
@@ -92,10 +94,11 @@ Plans:
   2. In playing state, only completed-structure event types (road/city/monastery completed + manual) are available
   3. In scoring state, only final event types (road/city/monastery final + farm final + manual) are available
   4. Finished state shows final ranking and is read-only -- no scoring or undo actions are possible
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — Service layer: state transition functions, event-type constants and validation, finished-state guards (TDD)
+- [ ] 05-02-PLAN.md — Web layer: transition routes, state-conditional dashboard UI, finished results view, integration tests
 
 ## Progress
 
@@ -107,6 +110,6 @@ Note: Phase 3 and Phase 4 are independent after Phase 2; they could execute in e
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-05-01 |
 | 2. Web UI | 3/3 | Complete | 2026-05-01 |
-| 3. History and Rollback | 0/TBD | Not started | - |
+| 3. History and Rollback | 0/2 | Not started | - |
 | 4. SVG Board | 0/TBD | Not started | - |
-| 5. Game States | 0/TBD | Not started | - |
+| 5. Game States | 0/2 | Not started | - |
