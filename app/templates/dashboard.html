@@ -13,6 +13,58 @@
 
     <div class="main-workspace">
         <div class="main-column">
+            <!-- Board Block -->
+            {% block board %}
+            <div id="board" class="board-wrapper"
+                 {% if oob %}hx-swap-oob="true"{% endif %}>
+                <svg class="board-svg" viewBox="0 0 600 420">
+                    <defs>
+                        <path id="meeple" d="
+                            M 0,-11
+                            C -3,-11 -5,-9 -5,-7
+                            L -5,-3 L -11,-3
+                            C -12,-3 -12,-1.5 -12,0
+                            L -12,1 L -7,5 L -4,5 L -4,10
+                            L 4,10 L 4,5 L 7,5 L 12,1 L 12,0
+                            C 12,-1.5 12,-3 11,-3
+                            L 5,-3 L 5,-7
+                            C 5,-9 3,-11 0,-11 Z
+                        " />
+                    </defs>
+
+                    <!-- Board photo background -->
+                    <image href="/static/images/carcassonneok.jpg"
+                           width="600" height="420"
+                           preserveAspectRatio="none" />
+
+                    <!-- Subtle darkening overlay -->
+                    <rect width="600" height="420" fill="rgba(0,0,0,0.08)" />
+
+                    <!-- Player tokens -->
+                    {% for cell_num, cell_players in board_cells.items() %}
+                    {% for bp in cell_players %}
+                    <g class="token-meeple"
+                       transform="translate({{ bp.cx }}, {{ bp.cy }})">
+                        <use href="#meeple" class="token-border" transform="scale(1.15)" />
+                        <use href="#meeple" fill="{{ bp.hex }}" />
+                        <text x="0" y="1"
+                              class="token-label{{ ' token-label-dark' if bp.color == 'yellow' else '' }}">
+                            {{ bp.initial }}
+                        </text>
+                    </g>
+                    {% if bp.lap > 0 %}
+                    <g transform="translate({{ bp.cx + 8 }}, {{ bp.cy - 14 }})">
+                        <rect x="-9" y="-6" width="18" height="12"
+                              rx="3" class="lap-badge-bg" />
+                        <text x="0" y="0" class="lap-badge">x{{ bp.lap }}</text>
+                    </g>
+                    {% endif %}
+                    {% endfor %}
+                    {% endfor %}
+                </svg>
+            </div>
+            {% endblock %}
+
             <!-- Score Table Block -->
             {% block score_table %}
             <div id="score-table" class="score-table-wrapper"

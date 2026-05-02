@@ -65,8 +65,64 @@ body {
     flex: 1;
 }
 
+.main-column .board-wrapper {
+    margin-bottom: 12px;
+}
+
 .main-column .score-table-wrapper {
     margin-bottom: 0;
+}
+
+/* ── Board SVG ── */
+.board-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.board-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+}
+
+.token-meeple {
+    filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.6));
+}
+
+.token-border {
+    fill: rgba(255,255,255,0.9);
+}
+
+.token-label {
+    fill: white;
+    font-size: 8px;
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+.token-label-dark {
+    fill: #1a1a1a;
+}
+
+.lap-badge-bg {
+    fill: var(--bg-dark);
+    stroke: var(--accent-gold);
+    stroke-width: 1.2;
+}
+
+.lap-badge {
+    font-size: 7px;
+    fill: var(--accent-gold);
+    font-weight: 800;
+    text-anchor: middle;
+    dominant-baseline: central;
 }
 
 /* ── Header (setup page) ── */
