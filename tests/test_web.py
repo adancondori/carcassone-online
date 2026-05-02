@@ -9,7 +9,7 @@ OOB attributes are present, score values are correct.
 import pytest
 from sqlmodel import select
 
-from app.models import Player, ScoreAction
+from app.models import Game, Player, ScoreAction
 
 
 # ── Helpers ─────────────────────────────────────────────────
@@ -458,3 +458,155 @@ class TestRollback:
         history_start = resp.text.find('id="history"')
         history_section = resp.text[history_start:]
         assert "undone" not in history_section
+
+
+# ── Board Tests ───────────────────────────────────────────
+
+
+class TestBoardContext:
+    """Unit tests for build_board_context helper (BOARD-01)."""
+
+    def test_empty_players(self):
+        """build_board_context with empty list returns empty dict."""
+        from app.web.dependencies import build_board_context
+
+        result = build_board_context([])
+        assert result == {}
+
+    def test_single_player_at_zero(self, session):
+        """Single player at score 0 maps to cell 0 with correct coords."""
+        from app.web.dependencies import BOARD_CELLS, build_board_context
+
+        game = Game(name="Test", status="playing")
+        session.add(game)
+        session.flush()
+        player = Player(
+            game_id=game.id, name="Alice", color="blue",
+            turn_order=1, score_total=0,
+        )
+        session.add(player)
+        session.commit()
+        session.refresh(player)
+
+        result = build_board_context([player])
+        assert 0 in result
+        tokens = result[0]
+        assert len(tokens) == 1
+        t = tokens[0]
+        # No stacking offset for single player
+        assert t["cx"] == BOARD_CELLS[0][0]
+        assert t["cy"] == BOARD_CELLS[0][1]
+        assert t["hex"] == "#0055BF"  # blue
+        assert t["color"] == "blue"
+        assert t["initial"] == "A"
+        assert t["lap"] == 0
+
+    def test_player_with_lap(self, session):
+        """Player at score 55 maps to cell 5 with lap 1."""
+        from app.web.dependencies import BOARD_CELLS, build_board_context
+
+        game = Game(name="Test", status="playing")
+        session.add(game)
+        session.flush()
+        player = Player(
+            game_id=game.id, name="Bob", color="red",
+            turn_order=1, score_total=55,
+        )
+        session.add(player)
+        session.commit()
+        session.refresh(player)
+
+        result = build_board_context([player])
+        assert 5 in result  # 55 % 50 = 5
+        t = result[5][0]
+        assert t["cx"] == BOARD_CELLS[5][0]
+        assert t["cy"] == BOARD_CELLS[5][1]
+        assert t["lap"] == 1  # 55 // 50 = 1
+
+    def test_stacking_offsets(self, session):
+        """Two players at same score get different positions via stacking."""
+        from app.web.dependencies import build_board_context
+
+        game = Game(name="Test", status="playing")
+        session.add(game)
+        session.flush()
+        alice = Player(
+            game_id=game.id, name="Alice", color="blue",
+            turn_order=1, score_total=0,
+        )
+        bob = Player(
+            game_id=game.id, name="Bob", color="red",
+            turn_order=2, score_total=0,
+        )
+        session.add_all([alice, bob])
+        session.commit()
+        session.refresh(alice)
+        session.refresh(bob)
+
+        result = build_board_context([alice, bob])
+        assert 0 in result
+        tokens = result[0]
+        assert len(tokens) == 2
+        # Stacking offsets must produce different coordinates
+        assert tokens[0]["cx"] != tokens[1]["cx"] or tokens[0]["cy"] != tokens[1]["cy"]
+
+
+class TestBoard:
+    """Integration tests for the SVG board in dashboard and OOB fragments."""
+
+    def test_dashboard_includes_board_svg(self, client, session):
+        """GET /games/{id} includes board SVG with correct structure."""
+        game_id, _ = create_started_game(client, session)
+        resp = client.get(f"/games/{game_id}")
+        assert resp.status_code == 200
+        assert 'id="board"' in resp.text
+        assert 'class="board-svg"' in resp.text
+        assert 'viewBox="0 0 600 420"' in resp.text
+        assert "/static/images/carcassonneok.jpg" in resp.text
+
+    def test_score_returns_board_oob(self, client, session):
+        """POST /score returns board OOB fragment with token for scored player."""
+        game_id, pids = create_started_game(client, session)
+        resp = post_score(client, game_id, [pids[0]], 8)
+        assert resp.status_code == 200
+        assert "<!DOCTYPE html>" not in resp.text
+
+        # Board OOB fragment present
+        board_start = resp.text.find('id="board"')
+        assert board_start != -1
+        board_section = resp.text[board_start:]
+        assert 'hx-swap-oob="true"' in resp.text
+        # Token should be present for the scored player
+        assert "token-meeple" in board_section
+
+    def test_undo_returns_board_oob(self, client, session):
+        """POST /undo returns board OOB fragment with updated token positions."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 10)
+        resp = post_undo(client, game_id)
+        assert resp.status_code == 200
+        assert "<!DOCTYPE html>" not in resp.text
+
+        # Board OOB fragment present
+        assert 'id="board"' in resp.text
+        assert 'hx-swap-oob="true"' in resp.text
+
+    def test_lap_badge_appears(self, client, session):
+        """Scoring past 49 produces a lap badge in the board."""
+        game_id, pids = create_started_game(client, session)
+        # Score 55 points to trigger lap 1
+        resp = post_score(client, game_id, [pids[0]], 55)
+        assert resp.status_code == 200
+        assert "lap-badge" in resp.text
+        assert "x1" in resp.text
+
+    def test_stacking_in_board_fragment(self, client, session):
+        """Two players with same score produce two tokens in board fragment."""
+        game_id, pids = create_started_game(client, session)
+        # Score both players same points via shared scoring
+        resp = post_score(client, game_id, [pids[0], pids[1]], 10)
+        assert resp.status_code == 200
+        # Board section should have two token-meeple groups
+        board_start = resp.text.find('id="board"')
+        board_section = resp.text[board_start:]
+        assert board_section.count("token-meeple") == 2
