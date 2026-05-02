@@ -112,11 +112,11 @@
 | UNDO-03 | Phase 3: History and Rollback | Complete |
 | UNDO-04 | Phase 3: History and Rollback | Complete |
 | DISPLAY-03 | Phase 3: History and Rollback | Complete |
-| BOARD-01 | Phase 4: SVG Board | Pending |
-| BOARD-02 | Phase 4: SVG Board | Pending |
-| BOARD-03 | Phase 4: SVG Board | Pending |
-| BOARD-04 | Phase 4: SVG Board | Pending |
-| BOARD-05 | Phase 4: SVG Board | Pending |
+| BOARD-01 | Phase 4: SVG Board | Complete |
+| BOARD-02 | Phase 4: SVG Board | Complete |
+| BOARD-03 | Phase 4: SVG Board | Complete |
+| BOARD-04 | Phase 4: SVG Board | Complete |
+| BOARD-05 | Phase 4: SVG Board | Complete |
 | STATE-01 | Phase 5: Game States | Pending |
 | STATE-02 | Phase 5: Game States | Pending |
 | STATE-03 | Phase 5: Game States | Pending |

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Data model, service layer, Docker, and test infrastructure
 - [x] **Phase 2: Web UI** - Setup page, dashboard, scoring controls, and HTMX fragment strategy
 - [x] **Phase 3: History and Rollback** - Action history display, rollback to any point, undo visibility
-- [ ] **Phase 4: SVG Board** - Visual scoring track with meeple tokens, laps, and stacking
+- [x] **Phase 4: SVG Board** - Visual scoring track with meeple tokens, laps, and stacking
 - [ ] **Phase 5: Game States** - State machine transitions, final scoring phase, finished screen
 
 ## Phase Details
@@ -111,5 +111,5 @@ Note: Phase 3 and Phase 4 are independent after Phase 2; they could execute in e
 | 1. Foundation | 3/3 | Complete | 2026-05-01 |
 | 2. Web UI | 3/3 | Complete | 2026-05-01 |
 | 3. History and Rollback | 2/2 | Complete | 2026-05-01 |
-| 4. SVG Board | 0/TBD | Not started | - |
+| 4. SVG Board | 2/2 | Complete | 2026-05-01 |
 | 5. Game States | 0/2 | Not started | - |
