@@ -17,7 +17,12 @@ from app.services import (
     start_game,
     undo_last,
 )
-from app.web.dependencies import EVENT_TYPE_LABELS, PLAYER_COLORS, templates
+from app.web.dependencies import (
+    EVENT_TYPE_LABELS,
+    PLAYER_COLORS,
+    build_board_context,
+    templates,
+)
 
 router = APIRouter()
 
@@ -28,14 +33,15 @@ router = APIRouter()
 def _render_dashboard_fragments(
     request: Request, session: Session, game_id: int
 ) -> HTMLResponse:
-    """Render score_table + OOB controls + OOB action_bar as a single response.
+    """Render score_table + OOB controls + OOB action_bar + OOB board as a single response.
 
     Used by both score and undo routes to return multi-fragment HTMX updates.
-    The primary target is the score_table (no oob attribute). Controls and
-    action_bar are out-of-band swaps (oob=True).
+    The primary target is the score_table (no oob attribute). Controls,
+    action_bar, history, and board are out-of-band swaps (oob=True).
     """
     game_state = get_game_state(session, game_id)
     all_players = sorted(game_state.players, key=lambda p: p.turn_order)
+    board_cells = build_board_context(game_state.players)
 
     base_context = {
         "request": request,
@@ -46,6 +52,7 @@ def _render_dashboard_fragments(
         "EVENT_TYPE_LABELS": EVENT_TYPE_LABELS,
         "action_details": game_state.action_details,
         "has_actions": game_state.action_count > 0,
+        "board_cells": board_cells,
     }
 
     # Primary target: score table (no oob attribute)
@@ -76,7 +83,16 @@ def _render_dashboard_fragments(
         block_name="history",
     ).body.decode()
 
-    return HTMLResponse(content=score_html + controls_html + action_bar_html + history_html)
+    # OOB: board (SVG scoring track with meeple tokens)
+    board_html = templates.TemplateResponse(
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="board",
+    ).body.decode()
+
+    return HTMLResponse(
+        content=score_html + controls_html + action_bar_html + history_html + board_html
+    )
 
 
 # ── Setup routes ─────────────────────────────────────────────
@@ -205,6 +221,7 @@ def game_dashboard(
         )
 
     all_players = sorted(game_state.players, key=lambda p: p.turn_order)
+    board_cells = build_board_context(game_state.players)
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -217,6 +234,7 @@ def game_dashboard(
             "EVENT_TYPE_LABELS": EVENT_TYPE_LABELS,
             "action_details": game_state.action_details,
             "has_actions": game_state.action_count > 0,
+            "board_cells": board_cells,
             "oob": False,
         },
     )
