@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** Players can accurately track scores during a Carcassonne game with undo capability, so mistakes at the table are never permanent.
-**Current focus:** Phase 2 - Web UI (complete)
+**Current focus:** Phase 3 - History and Rollback (in progress)
 
 ## Current Position
 
-Phase: 2 of 5 (Web UI)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-05-01 - Completed 02-03-PLAN.md (Web Integration Tests & Visual Verification)
+Phase: 3 of 5 (History and Rollback)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-05-01 - Completed 03-01-PLAN.md (History Panel UI, Rollback Route, CSS)
 
-Progress: [██████████] 100% (6/6 planned)
+Progress: [██████████████░░░░░░] 64% (7/11 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 4min
-- Total execution time: 21min
+- Total plans completed: 7
+- Average duration: 3min
+- Total execution time: 23min
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: [██████████] 100% (6/6 planned)
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 9min | 3min |
 | 02-web-ui | 3/3 | 12min | 4min |
+| 03-history-and-rollback | 1/2 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3min), 01-03 (2min), 02-01 (5min), 02-02 (5min), 02-03 (2min)
+- Last 5 plans: 01-03 (2min), 02-01 (5min), 02-02 (5min), 02-03 (2min), 03-01 (2min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -62,6 +63,9 @@ Recent decisions affecting current work:
 - [02-02]: Annotated[list[int], Form()] for multi-value checkbox form fields in FastAPI
 - [02-03]: TestClient uses dependency_overrides[get_session] to inject test session into routes
 - [02-03]: Fragment tests assert absence of <!DOCTYPE html> to verify HTMX partial responses
+- [03-01]: ActionDetail dataclass with pre-resolved player names/colors for template rendering
+- [03-01]: History as 4th OOB fragment in _render_dashboard_fragments (score_table + controls + action_bar + history)
+- [03-01]: hx-confirm on rollback but not on undo (rollback affects many actions, undo only one)
 
 ### Pending Todos
 
@@ -73,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-02T00:01Z
-Stopped at: Completed 02-03-PLAN.md (Phase 2 complete)
+Last session: 2026-05-02T00:30Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None
