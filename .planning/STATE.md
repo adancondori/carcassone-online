@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** Players can accurately track scores during a Carcassonne game with undo capability, so mistakes at the table are never permanent.
-**Current focus:** Phase 4 - SVG Board (in progress)
+**Current focus:** Phase 4 - SVG Board (complete)
 
 ## Current Position
 
 Phase: 4 of 5 (SVG Board)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-05-01 - Completed 04-01-PLAN.md (Board SVG, tokens, CSS, OOB wiring)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-05-01 - Completed 04-02-PLAN.md (Board tests & visual verification)
 
-Progress: [████████████████░░░░] 82% (9/11 planned)
+Progress: [██████████████████░░] 91% (10/11 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 3min
-- Total execution time: 28min
+- Total execution time: 33min
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [████████████████░░░░] 82% (9/
 | 01-foundation | 3/3 | 9min | 3min |
 | 02-web-ui | 3/3 | 12min | 4min |
 | 03-history-and-rollback | 2/2 | 4min | 2min |
-| 04-svg-board | 1/2 | 3min | 3min |
+| 04-svg-board | 2/2 | 8min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (5min), 02-03 (2min), 03-01 (2min), 03-02 (2min), 04-01 (3min)
+- Last 5 plans: 02-03 (2min), 03-01 (2min), 03-02 (2min), 04-01 (3min), 04-02 (5min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -72,6 +72,7 @@ Recent decisions affecting current work:
 - [04-01]: Server-side SVG rendering via Jinja2 loops (no client-side JS for board)
 - [04-01]: BOARD_CELLS + build_board_context in dependencies.py for clean route separation
 - [04-01]: Board as 5th OOB fragment in _render_dashboard_fragments (score_table + controls + action_bar + history + board)
+- [04-02]: All 50 BOARD_CELLS recalibrated from red-dot reference image (automated detection + manual fix for cells 36-37)
 
 ### Pending Todos
 
@@ -83,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-02T01:00Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-05-02T01:30Z
+Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
 Resume file: None
