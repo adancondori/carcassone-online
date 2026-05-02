@@ -107,11 +107,11 @@
 | DISPLAY-01 | Phase 2: Web UI | Complete |
 | DISPLAY-02 | Phase 2: Web UI | Complete |
 | DISPLAY-04 | Phase 2: Web UI | Complete |
-| UNDO-01 | Phase 3: History and Rollback | Pending |
-| UNDO-02 | Phase 3: History and Rollback | Pending |
-| UNDO-03 | Phase 3: History and Rollback | Pending |
-| UNDO-04 | Phase 3: History and Rollback | Pending |
-| DISPLAY-03 | Phase 3: History and Rollback | Pending |
+| UNDO-01 | Phase 3: History and Rollback | Complete |
+| UNDO-02 | Phase 3: History and Rollback | Complete |
+| UNDO-03 | Phase 3: History and Rollback | Complete |
+| UNDO-04 | Phase 3: History and Rollback | Complete |
+| DISPLAY-03 | Phase 3: History and Rollback | Complete |
 | BOARD-01 | Phase 4: SVG Board | Pending |
 | BOARD-02 | Phase 4: SVG Board | Pending |
 | BOARD-03 | Phase 4: SVG Board | Pending |
