@@ -10,7 +10,9 @@ from app.db import get_session
 from app.services import (
     add_player,
     add_score,
+    begin_scoring,
     create_game,
+    finish_game,
     get_game_state,
     remove_player,
     rollback_to,
@@ -20,6 +22,8 @@ from app.services import (
 from app.web.dependencies import (
     EVENT_TYPE_LABELS,
     PLAYER_COLORS,
+    PLAYING_EVENT_TYPE_LABELS,
+    SCORING_EVENT_TYPE_LABELS,
     build_board_context,
     templates,
 )
@@ -50,6 +54,7 @@ def _render_dashboard_fragments(
         "all_players": all_players,
         "PLAYER_COLORS": PLAYER_COLORS,
         "EVENT_TYPE_LABELS": EVENT_TYPE_LABELS,
+        "active_event_types": PLAYING_EVENT_TYPE_LABELS if game_state.game.status == "playing" else SCORING_EVENT_TYPE_LABELS,
         "action_details": game_state.action_details,
         "has_actions": game_state.action_count > 0,
         "board_cells": board_cells,
@@ -90,8 +95,15 @@ def _render_dashboard_fragments(
         block_name="board",
     ).body.decode()
 
+    # OOB: transition (state transition button area)
+    transition_html = templates.TemplateResponse(
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="transition",
+    ).body.decode()
+
     return HTMLResponse(
-        content=score_html + controls_html + action_bar_html + history_html + board_html
+        content=score_html + controls_html + action_bar_html + history_html + board_html + transition_html
     )
 
 
@@ -232,12 +244,33 @@ def game_dashboard(
             "all_players": all_players,
             "PLAYER_COLORS": PLAYER_COLORS,
             "EVENT_TYPE_LABELS": EVENT_TYPE_LABELS,
+            "active_event_types": PLAYING_EVENT_TYPE_LABELS if game_state.game.status == "playing" else SCORING_EVENT_TYPE_LABELS,
             "action_details": game_state.action_details,
             "has_actions": game_state.action_count > 0,
             "board_cells": board_cells,
-                "oob": False,
+            "oob": False,
         },
     )
+
+
+@router.post("/games/{game_id}/begin-scoring")
+def begin_scoring_route(game_id: int, session: Session = Depends(get_session)):
+    """Transition from playing to final scoring phase."""
+    try:
+        begin_scoring(session, game_id)
+    except ValueError:
+        pass
+    return RedirectResponse(url=f"/games/{game_id}", status_code=303)
+
+
+@router.post("/games/{game_id}/finish")
+def finish_game_route(game_id: int, session: Session = Depends(get_session)):
+    """Transition from scoring to finished state."""
+    try:
+        finish_game(session, game_id)
+    except ValueError:
+        pass
+    return RedirectResponse(url=f"/games/{game_id}", status_code=303)
 
 
 @router.post("/games/{game_id}/score")

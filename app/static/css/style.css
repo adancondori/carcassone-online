@@ -917,3 +917,60 @@ body {
     .point-btn { width: 42px; height: 40px; font-size: 0.9rem; }
     .type-btn { padding: 6px 10px; font-size: 0.78rem; }
 }
+
+/* ── State transition buttons ── */
+.btn-transition {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 12px 0;
+}
+.btn-begin-scoring {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+}
+.btn-finish {
+    background: #CC0000;
+    color: white;
+}
+
+/* ── Finished state results ── */
+.results-banner {
+    text-align: center;
+    padding: 24px 16px;
+    margin: 12px 0;
+    background: var(--bg-card);
+    border-radius: 12px;
+}
+.results-banner h2 {
+    color: var(--accent-gold);
+    margin: 0 0 16px 0;
+}
+.winner-announcement {
+    font-size: 1.3rem;
+    margin: 12px 0;
+}
+.winner-icon {
+    font-size: 1.5rem;
+}
+.winner-name {
+    font-weight: 700;
+    margin: 0 8px;
+}
+.winner-score {
+    color: var(--text-muted);
+}
+.btn-new-game {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 12px 24px;
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+}

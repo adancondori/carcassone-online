@@ -8,7 +8,11 @@
             <div class="header-title">Carcassonne</div>
             <div class="header-game">{{ game.name }}</div>
         </div>
-        <div class="header-status">En juego</div>
+        <div class="header-status">
+            {% if game.status == 'playing' %}En juego{% endif %}
+            {% if game.status == 'scoring' %}Puntuacion final{% endif %}
+            {% if game.status == 'finished' %}Finalizada{% endif %}
+        </div>
     </div>
 
     <div class="main-workspace">
@@ -92,12 +96,28 @@
                 </table>
             </div>
             {% endblock %}
+
+            <!-- Results Banner (finished state only) -->
+            {% if game.status == 'finished' %}
+            <div class="results-banner">
+                <h2>Partida finalizada</h2>
+                {% if players %}
+                <div class="winner-announcement">
+                    <span class="winner-icon">&#127942;</span>
+                    <span class="winner-name">{{ players[0].name }}</span>
+                    <span class="winner-score">{{ players[0].score_total }} pts</span>
+                </div>
+                {% endif %}
+                <a href="/games/new" class="btn-new-game">Nueva partida</a>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Controls Block -->
         {% block controls %}
         <div id="controls" class="controls"
              {% if oob %}hx-swap-oob="true"{% endif %}>
+            {% if game.status != 'finished' %}
             <form id="score-form"
                   hx-post="/games/{{ game.id }}/score"
                   hx-target="#score-table"
@@ -121,22 +141,13 @@
                 <div class="control-section">
                     <div class="control-label">Tipo</div>
                     <div class="type-buttons">
-                        <label class="type-btn active">
-                            <input type="radio" name="event_type" value="CITY_COMPLETED" checked style="display:none">
-                            Ciudad
+                        {% for key, label in active_event_types.items() %}
+                        <label class="type-btn {% if loop.first %}active{% endif %}">
+                            <input type="radio" name="event_type" value="{{ key }}"
+                                   {% if loop.first %}checked{% endif %} style="display:none">
+                            {{ label }}
                         </label>
-                        <label class="type-btn">
-                            <input type="radio" name="event_type" value="ROAD_COMPLETED" style="display:none">
-                            Camino
-                        </label>
-                        <label class="type-btn">
-                            <input type="radio" name="event_type" value="MONASTERY_COMPLETED" style="display:none">
-                            Monasterio
-                        </label>
-                        <label class="type-btn">
-                            <input type="radio" name="event_type" value="MANUAL" style="display:none">
-                            Manual
-                        </label>
+                        {% endfor %}
                     </div>
                 </div>
 
@@ -173,14 +184,37 @@
                     </button>
                 </div>
             </form>
+            {% endif %}
         </div>
         {% endblock %}
     </div>
+
+    <!-- Transition Block -->
+    {% block transition %}
+    <div id="transition" {% if oob %}hx-swap-oob="true"{% endif %}>
+        {% if game.status == 'playing' %}
+        <form method="post" action="/games/{{ game.id }}/begin-scoring">
+            <button type="submit" class="btn-transition btn-begin-scoring"
+                    onclick="return confirm('Cambiar a puntuacion final? Solo se podran anotar puntuaciones finales.')">
+                Puntuacion final
+            </button>
+        </form>
+        {% elif game.status == 'scoring' %}
+        <form method="post" action="/games/{{ game.id }}/finish">
+            <button type="submit" class="btn-transition btn-finish"
+                    onclick="return confirm('Terminar la partida? No se podran hacer mas cambios.')">
+                Terminar partida
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    {% endblock %}
 
     <!-- Action Bar Block -->
     {% block action_bar %}
     <div id="action-bar" class="action-bar"
          {% if oob %}hx-swap-oob="true"{% endif %}>
+        {% if game.status != 'finished' %}
         <button class="btn-action"
                 hx-post="/games/{{ game.id }}/undo"
                 hx-target="#score-table"
@@ -189,6 +223,7 @@
             <span class="icon">&#8630;</span>
             Deshacer
         </button>
+        {% endif %}
     </div>
     {% endblock %}
 
@@ -214,7 +249,7 @@
                     <div class="history-note">{{ detail.action.description }}</div>
                     {% endif %}
                 </div>
-                {% if not detail.action.is_undone %}
+                {% if not detail.action.is_undone and game.status != 'finished' %}
                 <button class="history-rollback-btn"
                         hx-post="/games/{{ game.id }}/rollback"
                         hx-vals='{"action_id": "{{ detail.action.id }}"}'

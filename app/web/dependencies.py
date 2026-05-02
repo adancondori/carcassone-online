@@ -31,6 +31,16 @@ EVENT_TYPE_LABELS = {
     "MANUAL": "Manual",
 }
 
+# Event type labels filtered by game state for template use.
+PLAYING_EVENT_TYPE_LABELS = {
+    k: v for k, v in EVENT_TYPE_LABELS.items()
+    if k in {"ROAD_COMPLETED", "CITY_COMPLETED", "MONASTERY_COMPLETED", "MANUAL"}
+}
+SCORING_EVENT_TYPE_LABELS = {
+    k: v for k, v in EVENT_TYPE_LABELS.items()
+    if k in {"ROAD_FINAL", "CITY_FINAL", "MONASTERY_FINAL", "FARM_FINAL", "MANUAL"}
+}
+
 # Carcassonne scoring track cell coordinates (50 cells, 0-49).
 # Mapped from board photo at viewBox 0 0 600 420.
 BOARD_CELLS = [
