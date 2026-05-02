@@ -462,8 +462,8 @@ def finish_game(session: Session, game_id: int) -> Game:
     game = session.get(Game, game_id)
     if game is None:
         raise ValueError(f"Game {game_id} not found")
-    if game.status != "scoring":
-        raise ValueError("Can only finish a game in scoring status")
+    if game.status not in ("playing", "scoring"):
+        raise ValueError("Can only finish a game in playing or scoring status")
 
     game.status = "finished"
     session.commit()

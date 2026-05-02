@@ -929,6 +929,11 @@ body {
     cursor: pointer;
     margin: 12px 0;
 }
+.transition-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
 .btn-begin-scoring {
     background: var(--accent-gold);
     color: var(--bg-dark);
@@ -936,6 +941,15 @@ body {
 .btn-finish {
     background: #CC0000;
     color: white;
+}
+.btn-finish-secondary {
+    background: var(--bg-medium);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+.btn-finish-secondary:hover {
+    border-color: var(--danger);
+    color: var(--danger);
 }
 
 /* ── Finished state results ── */
@@ -964,9 +978,51 @@ body {
 .winner-score {
     color: var(--text-muted);
 }
+.final-ranking {
+    margin: 20px 0;
+    text-align: left;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.ranking-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(47, 90, 142, 0.3);
+}
+.ranking-row:last-child { border-bottom: none; }
+.ranking-row:first-child .ranking-name { font-weight: 700; color: var(--accent-gold); }
+.ranking-position {
+    width: 20px;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.ranking-name { flex: 1; }
+.ranking-score {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+}
+.game-info-footer {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 16px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.finished-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+}
 .btn-new-game {
     display: inline-block;
-    margin-top: 16px;
     padding: 12px 24px;
     background: var(--accent-gold);
     color: var(--bg-dark);
@@ -974,6 +1030,12 @@ body {
     text-decoration: none;
     font-weight: 600;
 }
+.btn-home-link {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-decoration: none;
+}
+.btn-home-link:hover { color: var(--text-primary); }
 
 /* ── Home Dashboard ── */
 .home-new-game {

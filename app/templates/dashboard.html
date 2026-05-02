@@ -107,8 +107,31 @@
                     <span class="winner-name">{{ players[0].name }}</span>
                     <span class="winner-score">{{ players[0].score_total }} pts</span>
                 </div>
+
+                <!-- Final ranking -->
+                <div class="final-ranking">
+                    {% for player in players %}
+                    <div class="ranking-row">
+                        <span class="ranking-position">{{ loop.index }}.</span>
+                        <span class="player-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span>
+                        <span class="ranking-name">{{ player.name }}</span>
+                        <span class="ranking-score">{{ player.score_total }} pts</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Game info -->
+                <div class="game-info-footer">
+                    <span>{{ game.name }}</span>
+                    <span>{{ game.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                    <span>{{ action_details|length }} acciones</span>
+                </div>
                 {% endif %}
-                <a href="/games/new" class="btn-new-game">Nueva partida</a>
+
+                <div class="finished-actions">
+                    <a href="/games/new" class="btn-new-game">Nueva partida</a>
+                    <a href="/" class="btn-home-link">Ver todas las partidas</a>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -193,12 +216,20 @@
     {% block transition %}
     <div id="transition" {% if oob %}hx-swap-oob="true"{% endif %}>
         {% if game.status == 'playing' %}
-        <form method="post" action="/games/{{ game.id }}/begin-scoring">
-            <button type="submit" class="btn-transition btn-begin-scoring"
-                    onclick="return confirm('Cambiar a puntuacion final? Solo se podran anotar puntuaciones finales.')">
-                Puntuacion final
-            </button>
-        </form>
+        <div class="transition-group">
+            <form method="post" action="/games/{{ game.id }}/begin-scoring">
+                <button type="submit" class="btn-transition btn-begin-scoring"
+                        onclick="return confirm('Cambiar a puntuacion final? Solo se podran anotar puntuaciones finales.')">
+                    Puntuacion final
+                </button>
+            </form>
+            <form method="post" action="/games/{{ game.id }}/finish">
+                <button type="submit" class="btn-transition btn-finish-secondary"
+                        onclick="return confirm('Terminar la partida sin puntuacion final? No se podran hacer mas cambios.')">
+                    Terminar partida
+                </button>
+            </form>
+        </div>
         {% elif game.status == 'scoring' %}
         <form method="post" action="/games/{{ game.id }}/finish">
             <button type="submit" class="btn-transition btn-finish"

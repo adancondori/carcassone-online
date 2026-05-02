@@ -354,9 +354,17 @@ class TestGameStates:
 
         assert result.id == game.id
 
-    def test_finish_game_rejects_non_scoring(self, session, game_with_players):
-        """finish_game raises ValueError for a non-scoring game (e.g. playing)."""
+    def test_finish_game_from_playing(self, session, game_with_players):
+        """finish_game works directly from playing state (skip scoring)."""
         game, _ = game_with_players
+
+        result = finish_game(session, game.id)
+        assert result.status == "finished"
+
+    def test_finish_game_rejects_setup(self, session):
+        """finish_game raises ValueError for a setup game."""
+        from app.services import create_game
+        game = create_game(session, "Test")
 
         with pytest.raises(ValueError):
             finish_game(session, game.id)
