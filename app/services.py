@@ -1,7 +1,8 @@
 """Service functions for Carcassonne Scoreboard.
 
 Core operations: add_score, undo_last, rollback_to, recalculate_score.
-Game lifecycle: create_game, add_player, remove_player, start_game.
+Game lifecycle: create_game, add_player, remove_player, start_game,
+               begin_scoring, finish_game.
 Query helpers: get_game_state.
 
 All functions take a Session as first argument for explicit transaction control.
@@ -20,6 +21,16 @@ COLOR_HEX_MAP = {
     "blue": "#0055BF", "red": "#CC0000", "green": "#237F23",
     "yellow": "#F2CD00", "black": "#1A1A1A", "pink": "#FF69B4",
 }
+
+# Event types valid during the playing (mid-game) phase.
+PLAYING_EVENT_TYPES = frozenset({
+    "ROAD_COMPLETED", "CITY_COMPLETED", "MONASTERY_COMPLETED", "MANUAL",
+})
+
+# Event types valid during the scoring (end-game) phase.
+SCORING_EVENT_TYPES = frozenset({
+    "ROAD_FINAL", "CITY_FINAL", "MONASTERY_FINAL", "FARM_FINAL", "MANUAL",
+})
 
 
 @dataclass
@@ -124,8 +135,25 @@ def add_score(
         The created ScoreAction.
 
     Raises:
-        ValueError: If a player_id does not exist.
+        ValueError: If game state doesn't allow this event type, or player_id not found.
     """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+
+    if game.status == "playing":
+        if event_type not in PLAYING_EVENT_TYPES:
+            raise ValueError(
+                f"Event type '{event_type}' is not valid during playing state"
+            )
+    elif game.status == "scoring":
+        if event_type not in SCORING_EVENT_TYPES:
+            raise ValueError(
+                f"Event type '{event_type}' is not valid during scoring state"
+            )
+    else:
+        raise ValueError(f"Cannot add scores in '{game.status}' state")
+
     action = ScoreAction(
         game_id=game_id,
         event_type=event_type,
@@ -164,7 +192,14 @@ def undo_last(session: Session, game_id: int) -> ScoreAction | None:
 
     Returns:
         The undone ScoreAction, or None if no active actions exist.
+
+    Raises:
+        ValueError: If game is in finished state.
     """
+    game = session.get(Game, game_id)
+    if game is not None and game.status == "finished":
+        raise ValueError("Cannot undo in a finished game")
+
     statement = (
         select(ScoreAction)
         .where(ScoreAction.game_id == game_id)
@@ -200,7 +235,14 @@ def rollback_to(session: Session, game_id: int, action_id: int) -> int:
 
     Returns:
         Number of actions that were undone.
+
+    Raises:
+        ValueError: If game is in finished state.
     """
+    game = session.get(Game, game_id)
+    if game is not None and game.status == "finished":
+        raise ValueError("Cannot rollback in a finished game")
+
     statement = (
         select(ScoreAction)
         .where(ScoreAction.game_id == game_id)
@@ -374,6 +416,56 @@ def start_game(session: Session, game_id: int) -> Game:
         raise ValueError("Need at least 2 players to start")
 
     game.status = "playing"
+    session.commit()
+    session.refresh(game)
+    return game
+
+
+def begin_scoring(session: Session, game_id: int) -> Game:
+    """Transition a game from playing to scoring status.
+
+    Args:
+        session: Database session.
+        game_id: The game to transition.
+
+    Returns:
+        The updated Game.
+
+    Raises:
+        ValueError: If game is not in playing status.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status != "playing":
+        raise ValueError("Can only begin scoring for a game in playing status")
+
+    game.status = "scoring"
+    session.commit()
+    session.refresh(game)
+    return game
+
+
+def finish_game(session: Session, game_id: int) -> Game:
+    """Transition a game from scoring to finished status.
+
+    Args:
+        session: Database session.
+        game_id: The game to finish.
+
+    Returns:
+        The updated Game.
+
+    Raises:
+        ValueError: If game is not in scoring status.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status != "scoring":
+        raise ValueError("Can only finish a game in scoring status")
+
+    game.status = "finished"
     session.commit()
     session.refresh(game)
     return game
