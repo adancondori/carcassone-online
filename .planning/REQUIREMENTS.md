@@ -117,10 +117,10 @@
 | BOARD-03 | Phase 4: SVG Board | Complete |
 | BOARD-04 | Phase 4: SVG Board | Complete |
 | BOARD-05 | Phase 4: SVG Board | Complete |
-| STATE-01 | Phase 5: Game States | Pending |
-| STATE-02 | Phase 5: Game States | Pending |
-| STATE-03 | Phase 5: Game States | Pending |
-| STATE-04 | Phase 5: Game States | Pending |
+| STATE-01 | Phase 5: Game States | Complete |
+| STATE-02 | Phase 5: Game States | Complete |
+| STATE-03 | Phase 5: Game States | Complete |
+| STATE-04 | Phase 5: Game States | Complete |
 
 **Coverage:**
 - v1 requirements: 33 total
