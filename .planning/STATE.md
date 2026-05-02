@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** Players can accurately track scores during a Carcassonne game with undo capability, so mistakes at the table are never permanent.
-**Current focus:** Phase 3 - History and Rollback (in progress)
+**Current focus:** Phase 4 - SVG Board (next up)
 
 ## Current Position
 
 Phase: 3 of 5 (History and Rollback)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-05-01 - Completed 03-01-PLAN.md (History Panel UI, Rollback Route, CSS)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-05-01 - Completed 03-02-PLAN.md (History/Rollback Integration Tests)
 
-Progress: [██████████████░░░░░░] 64% (7/11 planned)
+Progress: [██████████████░░░░░░] 73% (8/11 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 3min
-- Total execution time: 23min
+- Total execution time: 25min
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [██████████████░░░░░░] 64% (7/
 |-------|-------|-------|----------|
 | 01-foundation | 3/3 | 9min | 3min |
 | 02-web-ui | 3/3 | 12min | 4min |
-| 03-history-and-rollback | 1/2 | 2min | 2min |
+| 03-history-and-rollback | 2/2 | 4min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (2min), 02-01 (5min), 02-02 (5min), 02-03 (2min), 03-01 (2min)
-- Trend: stable
+- Last 5 plans: 02-01 (5min), 02-02 (5min), 02-03 (2min), 03-01 (2min), 03-02 (2min)
+- Trend: stable, accelerating for smaller test-focused plans
 
 *Updated after each plan completion*
 
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - [03-01]: ActionDetail dataclass with pre-resolved player names/colors for template rendering
 - [03-01]: History as 4th OOB fragment in _render_dashboard_fragments (score_table + controls + action_bar + history)
 - [03-01]: hx-confirm on rollback but not on undo (rollback affects many actions, undo only one)
+- [03-02]: Query ScoreAction table via get_action_ids helper for rollback test action IDs
+- [03-02]: Extract history section from response for targeted undone-class assertions
 
 ### Pending Todos
 
@@ -77,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-02T00:30Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-05-02T00:35Z
+Stopped at: Completed 03-02-PLAN.md (Phase 3 complete)
 Resume file: None
