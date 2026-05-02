@@ -63,7 +63,7 @@ Disenado mobile-first para usar en la mesa de juego desde un telefono o tablet.
 ### Con Docker (recomendado)
 
 ```bash
-git clone https://github.com/tu-usuario/carcassonne-scoreboard.git
+git clone git@github.com:adancondori/carcassone-online.git
 cd carcassonne-scoreboard
 docker compose up --build
 ```
@@ -75,7 +75,7 @@ Abrir http://localhost:8000
 Requisitos: Python 3.12+
 
 ```bash
-git clone https://github.com/tu-usuario/carcassonne-scoreboard.git
+git clone git@github.com:adancondori/carcassone-online.git
 cd carcassonne-scoreboard
 
 # Crear entorno virtual
