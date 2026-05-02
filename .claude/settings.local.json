@@ -3,7 +3,10 @@
     "allow": [
       "WebSearch",
       "WebFetch(domain:garesys.com)",
-      "WebFetch(domain:wikicarpedia.com)"
+      "WebFetch(domain:wikicarpedia.com)",
+      "Skill(so:new-project)",
+      "Bash(git -C /Users/eidan/Projects/Personal/Carcassonne check-ignore -q .planning)",
+      "Bash(git -C /Users/eidan/Projects/Personal/Carcassonne status)"
     ]
   }
 }
