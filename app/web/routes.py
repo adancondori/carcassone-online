@@ -13,10 +13,11 @@ from app.services import (
     create_game,
     get_game_state,
     remove_player,
+    rollback_to,
     start_game,
     undo_last,
 )
-from app.web.dependencies import PLAYER_COLORS, templates
+from app.web.dependencies import EVENT_TYPE_LABELS, PLAYER_COLORS, templates
 
 router = APIRouter()
 
@@ -42,6 +43,8 @@ def _render_dashboard_fragments(
         "players": game_state.players,
         "all_players": all_players,
         "PLAYER_COLORS": PLAYER_COLORS,
+        "EVENT_TYPE_LABELS": EVENT_TYPE_LABELS,
+        "action_details": game_state.action_details,
         "has_actions": game_state.action_count > 0,
     }
 
@@ -66,7 +69,14 @@ def _render_dashboard_fragments(
         block_name="action_bar",
     ).body.decode()
 
-    return HTMLResponse(content=score_html + controls_html + action_bar_html)
+    # OOB: history (action list with rollback buttons)
+    history_html = templates.TemplateResponse(
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="history",
+    ).body.decode()
+
+    return HTMLResponse(content=score_html + controls_html + action_bar_html + history_html)
 
 
 # ── Setup routes ─────────────────────────────────────────────
@@ -204,6 +214,8 @@ def game_dashboard(
             "players": game_state.players,
             "all_players": all_players,
             "PLAYER_COLORS": PLAYER_COLORS,
+            "EVENT_TYPE_LABELS": EVENT_TYPE_LABELS,
+            "action_details": game_state.action_details,
             "has_actions": game_state.action_count > 0,
             "oob": False,
         },
@@ -241,5 +253,21 @@ def undo_action(
         undo_last(session, game_id)
     except ValueError:
         pass  # No active actions to undo; fragments show current state
+
+    return _render_dashboard_fragments(request, session, game_id)
+
+
+@router.post("/games/{game_id}/rollback")
+def rollback_action(
+    request: Request,
+    game_id: int,
+    action_id: int = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Rollback to a specific action and return HTMX fragments."""
+    try:
+        rollback_to(session, game_id, action_id)
+    except ValueError:
+        pass  # Invalid action_id; fragments show current state
 
     return _render_dashboard_fragments(request, session, game_id)

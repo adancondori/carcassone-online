@@ -23,11 +23,23 @@ COLOR_HEX_MAP = {
 
 
 @dataclass
+class ActionDetail:
+    """A scoring action with resolved player names/colors for template rendering."""
+    action: ScoreAction
+    entries: list[dict]  # Each dict: {"player_name": str, "player_color": str, "points": int}
+
+
+@dataclass
 class GameState:
     """Snapshot of a game's current state for template rendering."""
     game: Game
     players: list[Player]
     action_count: int
+    action_details: list[ActionDetail] = None
+
+    def __post_init__(self):
+        if self.action_details is None:
+            self.action_details = []
 
 
 def get_game_state(session: Session, game_id: int) -> GameState:
@@ -59,7 +71,37 @@ def get_game_state(session: Session, game_id: int) -> GameState:
         .where(ScoreAction.is_undone == False)  # noqa: E712
     ).one()
 
-    return GameState(game=game, players=list(players), action_count=action_count)
+    # Load all actions (active and undone) with their entries for history panel
+    actions = session.exec(
+        select(ScoreAction)
+        .where(ScoreAction.game_id == game_id)
+        .order_by(ScoreAction.id)
+    ).all()
+
+    # Build player lookup for entry rendering
+    player_map = {p.id: p for p in players}
+
+    action_details = []
+    for action in actions:
+        entries = session.exec(
+            select(ScoreEntry).where(ScoreEntry.action_id == action.id)
+        ).all()
+        entry_dicts = [
+            {
+                "player_name": player_map[e.player_id].name if e.player_id in player_map else "?",
+                "player_color": player_map[e.player_id].color if e.player_id in player_map else "black",
+                "points": e.points,
+            }
+            for e in entries
+        ]
+        action_details.append(ActionDetail(action=action, entries=entry_dicts))
+
+    return GameState(
+        game=game,
+        players=list(players),
+        action_count=action_count,
+        action_details=action_details,
+    )
 
 
 def add_score(

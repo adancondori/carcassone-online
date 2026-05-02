@@ -139,6 +139,48 @@
         </button>
     </div>
     {% endblock %}
+
+    <!-- History Block -->
+    {% block history %}
+    <div id="history" class="history"
+         {% if oob %}hx-swap-oob="true"{% endif %}>
+        <div class="history-header">
+            <span class="history-title">Historial de acciones</span>
+        </div>
+        <ul class="history-list">
+            {% for detail in action_details|reverse %}
+            <li class="history-item {% if detail.action.is_undone %}undone{% endif %}">
+                <span class="history-number">#{{ detail.action.id }}</span>
+                <div class="history-content">
+                    <span class="history-type">{{ EVENT_TYPE_LABELS[detail.action.event_type] }}: </span>
+                    <span class="history-players">
+                        {% for entry in detail.entries %}
+                        <span style="color:{{ PLAYER_COLORS[entry.player_color].hex }}">{{ entry.player_name }}</span> +{{ entry.points }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    </span>
+                    {% if detail.action.description %}
+                    <div class="history-note">{{ detail.action.description }}</div>
+                    {% endif %}
+                </div>
+                {% if not detail.action.is_undone %}
+                <button class="history-rollback-btn"
+                        hx-post="/games/{{ game.id }}/rollback"
+                        hx-vals='{"action_id": "{{ detail.action.id }}"}'
+                        hx-target="#score-table"
+                        hx-swap="outerHTML"
+                        hx-confirm="Rollback to action #{{ detail.action.id }}?">
+                    &#8630;
+                </button>
+                {% endif %}
+            </li>
+            {% else %}
+            <li class="history-item" style="color:var(--text-muted); justify-content:center">
+                Sin acciones todavia
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endblock %}
 </div>
 {% endblock %}
 

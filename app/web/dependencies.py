@@ -1,4 +1,4 @@
-"""Shared web dependencies: template engine, color constants."""
+"""Shared web dependencies: template engine, color constants, label maps."""
 
 from jinja2_fragments.fastapi import Jinja2Blocks
 
@@ -14,4 +14,16 @@ PLAYER_COLORS = {
     "yellow": {"name": "Amarillo", "hex": "#F2CD00"},
     "black":  {"name": "Negro",    "hex": "#1A1A1A"},
     "pink":   {"name": "Rosa",     "hex": "#FF69B4"},
+}
+
+# Display-friendly labels for scoring event types.
+EVENT_TYPE_LABELS = {
+    "ROAD_COMPLETED": "Camino",
+    "CITY_COMPLETED": "Ciudad",
+    "MONASTERY_COMPLETED": "Monasterio",
+    "ROAD_FINAL": "Camino (final)",
+    "CITY_FINAL": "Ciudad (final)",
+    "MONASTERY_FINAL": "Monasterio (final)",
+    "FARM_FINAL": "Granja",
+    "MANUAL": "Manual",
 }
