@@ -212,47 +212,43 @@
         {% endblock %}
     </div>
 
-    <!-- Transition Block -->
-    {% block transition %}
-    <div id="transition" {% if oob %}hx-swap-oob="true"{% endif %}>
+    <!-- Game Actions Bar (transition + undo in one row) -->
+    {% block game_actions %}
+    <div id="game-actions" class="game-actions"
+         {% if oob %}hx-swap-oob="true"{% endif %}>
         {% if game.status == 'playing' %}
-        <div class="transition-group">
-            <form method="post" action="/games/{{ game.id }}/begin-scoring">
-                <button type="submit" class="btn-transition btn-begin-scoring"
-                        onclick="return confirm('Cambiar a puntuacion final? Solo se podran anotar puntuaciones finales.')">
-                    Puntuacion final
-                </button>
-            </form>
-            <form method="post" action="/games/{{ game.id }}/finish">
-                <button type="submit" class="btn-transition btn-finish-secondary"
-                        onclick="return confirm('Terminar la partida sin puntuacion final? No se podran hacer mas cambios.')">
-                    Terminar partida
-                </button>
-            </form>
-        </div>
-        {% elif game.status == 'scoring' %}
-        <form method="post" action="/games/{{ game.id }}/finish">
-            <button type="submit" class="btn-transition btn-finish"
-                    onclick="return confirm('Terminar la partida? No se podran hacer mas cambios.')">
-                Terminar partida
+        <form method="post" action="/games/{{ game.id }}/begin-scoring">
+            <button type="submit" class="ga-btn ga-scoring"
+                    onclick="return confirm('Cambiar a puntuacion final? Solo se podran anotar puntuaciones finales.')">
+                Punt. final
             </button>
         </form>
-        {% endif %}
-    </div>
-    {% endblock %}
-
-    <!-- Action Bar Block -->
-    {% block action_bar %}
-    <div id="action-bar" class="action-bar"
-         {% if oob %}hx-swap-oob="true"{% endif %}>
-        {% if game.status != 'finished' %}
-        <button class="btn-action"
+        <form method="post" action="/games/{{ game.id }}/finish">
+            <button type="submit" class="ga-btn ga-finish"
+                    onclick="return confirm('Terminar la partida sin puntuacion final? No se podran hacer mas cambios.')">
+                Terminar
+            </button>
+        </form>
+        <button class="ga-btn ga-undo"
                 hx-post="/games/{{ game.id }}/undo"
                 hx-target="#score-table"
                 hx-swap="outerHTML"
                 {% if not has_actions %}disabled{% endif %}>
-            <span class="icon">&#8630;</span>
-            Deshacer
+            &#8630; Deshacer
+        </button>
+        {% elif game.status == 'scoring' %}
+        <form method="post" action="/games/{{ game.id }}/finish">
+            <button type="submit" class="ga-btn ga-finish"
+                    onclick="return confirm('Terminar la partida? No se podran hacer mas cambios.')">
+                Terminar partida
+            </button>
+        </form>
+        <button class="ga-btn ga-undo"
+                hx-post="/games/{{ game.id }}/undo"
+                hx-target="#score-table"
+                hx-swap="outerHTML"
+                {% if not has_actions %}disabled{% endif %}>
+            &#8630; Deshacer
         </button>
         {% endif %}
     </div>

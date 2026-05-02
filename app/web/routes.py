@@ -75,11 +75,11 @@ def _render_dashboard_fragments(
         block_name="controls",
     ).body.decode()
 
-    # OOB: action bar (undo button enabled/disabled state)
-    action_bar_html = templates.TemplateResponse(
+    # OOB: game actions bar (transition buttons + undo)
+    game_actions_html = templates.TemplateResponse(
         "dashboard.html",
         {**base_context, "oob": True},
-        block_name="action_bar",
+        block_name="game_actions",
     ).body.decode()
 
     # OOB: history (action list with rollback buttons)
@@ -96,15 +96,8 @@ def _render_dashboard_fragments(
         block_name="board",
     ).body.decode()
 
-    # OOB: transition (state transition button area)
-    transition_html = templates.TemplateResponse(
-        "dashboard.html",
-        {**base_context, "oob": True},
-        block_name="transition",
-    ).body.decode()
-
     return HTMLResponse(
-        content=score_html + controls_html + action_bar_html + history_html + board_html + transition_html
+        content=score_html + controls_html + game_actions_html + history_html + board_html
     )
 
 

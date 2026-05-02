@@ -697,42 +697,7 @@ body {
     cursor: not-allowed;
 }
 
-/* ── Action bar ── */
-.action-bar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.btn-action {
-    flex: 1;
-    padding: 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
-}
-
-.btn-action:hover {
-    background: var(--bg-input);
-    color: var(--text-primary);
-}
-
-.btn-action.danger:hover {
-    border-color: var(--danger);
-    color: var(--danger);
-}
-
-.btn-action .icon {
-    display: block;
-    font-size: 1.2rem;
-    margin-bottom: 2px;
-}
+/* (action-bar merged into .game-actions above) */
 
 /* ── History ── */
 .history {
@@ -918,38 +883,57 @@ body {
     .type-btn { padding: 6px 10px; font-size: 0.78rem; }
 }
 
-/* ── State transition buttons ── */
-.btn-transition {
+/* ── Game actions bar (transition + undo in one row) ── */
+.game-actions {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0;
+}
+.game-actions form {
+    flex: 1;
+    min-width: 0;
+}
+.ga-btn {
     width: 100%;
-    padding: 14px;
-    border: none;
+    padding: 10px 8px;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.78rem;
     font-weight: 600;
     cursor: pointer;
-    margin: 12px 0;
+    transition: all 0.15s;
+    white-space: nowrap;
+    text-align: center;
 }
-.transition-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.btn-begin-scoring {
+.ga-btn:active { transform: scale(0.97); }
+.ga-scoring {
     background: var(--accent-gold);
     color: var(--bg-dark);
+    border-color: var(--accent-gold);
+    flex: 1;
 }
-.btn-finish {
-    background: #CC0000;
-    color: white;
-}
-.btn-finish-secondary {
+.ga-scoring:hover { background: var(--accent-gold-hover); }
+.ga-finish {
     background: var(--bg-medium);
     color: var(--text-secondary);
-    border: 1px solid var(--border);
+    flex: 1;
 }
-.btn-finish-secondary:hover {
+.ga-finish:hover {
     border-color: var(--danger);
     color: var(--danger);
+}
+.ga-undo {
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    flex: 1;
+}
+.ga-undo:hover {
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+}
+.ga-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }
 
 /* ── Finished state results ── */
