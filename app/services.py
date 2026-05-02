@@ -469,3 +469,109 @@ def finish_game(session: Session, game_id: int) -> Game:
     session.commit()
     session.refresh(game)
     return game
+
+
+# ── Dashboard stats ────────────────────────────────────────
+
+
+@dataclass
+class DashboardStats:
+    """Aggregate statistics for the home dashboard."""
+    total_games: int
+    finished_games: int
+    active_games: int
+    total_actions: int
+    top_winners: list[dict]       # [{"name": str, "wins": int, "color": str}]
+    recent_games: list[dict]      # [{"id", "name", "status", "created_at", "players", "winner"}]
+    games_by_week: list[dict]     # [{"week": str, "count": int}]
+
+
+def get_dashboard_stats(session: Session) -> DashboardStats:
+    """Compute aggregate stats across all games for the home dashboard."""
+    # Total / finished / active counts
+    total_games = session.exec(select(func.count(Game.id))).one()
+    finished_games = session.exec(
+        select(func.count(Game.id)).where(Game.status == "finished")
+    ).one()
+    active_games = session.exec(
+        select(func.count(Game.id)).where(Game.status.in_(["playing", "scoring"]))
+    ).one()
+
+    # Total scoring actions (across all games, only active ones)
+    total_actions = session.exec(
+        select(func.count(ScoreAction.id))
+        .where(ScoreAction.is_undone == False)  # noqa: E712
+    ).one()
+
+    # Top winners: players who won finished games (highest score in each finished game)
+    finished = session.exec(
+        select(Game).where(Game.status == "finished")
+    ).all()
+
+    winner_counts: dict[str, dict] = {}  # name -> {"wins": int, "color": str}
+    for game in finished:
+        players = session.exec(
+            select(Player)
+            .where(Player.game_id == game.id)
+            .order_by(Player.score_total.desc())
+        ).all()
+        if players:
+            winner = players[0]
+            if winner.name not in winner_counts:
+                winner_counts[winner.name] = {"wins": 0, "color": winner.color}
+            winner_counts[winner.name]["wins"] += 1
+
+    top_winners = sorted(
+        [{"name": name, **data} for name, data in winner_counts.items()],
+        key=lambda w: -w["wins"],
+    )[:5]
+
+    # Recent games (last 10)
+    recent_raw = session.exec(
+        select(Game).order_by(Game.created_at.desc()).limit(10)
+    ).all()
+
+    recent_games = []
+    for game in recent_raw:
+        players = session.exec(
+            select(Player)
+            .where(Player.game_id == game.id)
+            .order_by(Player.score_total.desc())
+        ).all()
+        winner = None
+        if game.status == "finished" and players:
+            winner = {"name": players[0].name, "score": players[0].score_total, "color": players[0].color}
+        recent_games.append({
+            "id": game.id,
+            "name": game.name,
+            "status": game.status,
+            "created_at": game.created_at,
+            "player_count": len(players),
+            "players": [{"name": p.name, "color": p.color, "score": p.score_total} for p in players],
+            "winner": winner,
+        })
+
+    # Games by week (last 8 weeks)
+    all_games = session.exec(
+        select(Game).order_by(Game.created_at.desc())
+    ).all()
+
+    week_counts: dict[str, int] = {}
+    for game in all_games:
+        week_key = game.created_at.strftime("%Y-W%W")
+        week_counts[week_key] = week_counts.get(week_key, 0) + 1
+
+    games_by_week = [
+        {"week": week, "count": count}
+        for week, count in sorted(week_counts.items(), reverse=True)[:8]
+    ]
+
+    return DashboardStats(
+        total_games=total_games,
+        finished_games=finished_games,
+        active_games=active_games,
+        total_actions=total_actions,
+        top_winners=top_winners,
+        recent_games=recent_games,
+        games_by_week=games_by_week,
+    )

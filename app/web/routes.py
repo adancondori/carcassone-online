@@ -13,6 +13,7 @@ from app.services import (
     begin_scoring,
     create_game,
     finish_game,
+    get_dashboard_stats,
     get_game_state,
     remove_player,
     rollback_to,
@@ -104,6 +105,26 @@ def _render_dashboard_fragments(
 
     return HTMLResponse(
         content=score_html + controls_html + action_bar_html + history_html + board_html + transition_html
+    )
+
+
+# ── Home ────────────────────────────────────────────────────
+
+
+@router.get("/")
+def home_page(
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """Render the home dashboard with stats across all games."""
+    stats = get_dashboard_stats(session)
+    return templates.TemplateResponse(
+        "home.html",
+        {
+            "request": request,
+            "stats": stats,
+            "PLAYER_COLORS": PLAYER_COLORS,
+        },
     )
 
 

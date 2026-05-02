@@ -31,7 +31,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(router)
 
 
-@app.get("/")
+@app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "ok"}

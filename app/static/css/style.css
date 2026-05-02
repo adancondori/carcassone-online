@@ -974,3 +974,206 @@ body {
     text-decoration: none;
     font-weight: 600;
 }
+
+/* ── Home Dashboard ── */
+.home-new-game {
+    display: block;
+    text-align: center;
+    margin-bottom: 16px;
+    text-decoration: none;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Winners list */
+.winners-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.winner-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(47, 90, 142, 0.3);
+}
+
+.winner-row:last-child {
+    border-bottom: none;
+}
+
+.winner-rank {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-medium);
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+}
+
+.winner-name-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.winner-wins {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Week chart */
+.week-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 120px;
+    padding-top: 8px;
+}
+
+.week-bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+}
+
+.week-bar {
+    width: 100%;
+    max-width: 36px;
+    background: var(--accent-gold);
+    border-radius: 4px 4px 0 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 8px;
+}
+
+.week-bar-value {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--bg-dark);
+    padding-top: 2px;
+}
+
+.week-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* Recent games */
+.recent-games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.recent-game-item {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(47, 90, 142, 0.3);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s;
+}
+
+.recent-game-item:last-child {
+    border-bottom: none;
+}
+
+.recent-game-item:hover {
+    background: rgba(212, 165, 70, 0.06);
+}
+
+.recent-game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.recent-game-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.recent-game-status {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.status-setup { background: rgba(112, 138, 171, 0.2); color: var(--text-muted); }
+.status-playing { background: rgba(39, 174, 96, 0.2); color: var(--success); }
+.status-scoring { background: rgba(201, 165, 76, 0.2); color: var(--accent-gold); }
+.status-finished { background: rgba(112, 138, 171, 0.15); color: var(--text-secondary); }
+
+.recent-game-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.recent-game-players {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.player-dot.small {
+    width: 8px;
+    height: 8px;
+    margin-right: 0;
+}
+
+.recent-game-winner {
+    font-size: 0.75rem;
+    color: var(--accent-gold);
+}
+
+.recent-game-date {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}

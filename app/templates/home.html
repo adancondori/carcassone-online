@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Carcassonne Scoreboard{% endblock %}
+{% block content %}
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h1>Carcassonne</h1>
+        <p>Scoreboard</p>
+    </div>
+
+    <!-- New Game Button -->
+    <a href="/games/new" class="btn btn-primary home-new-game">Nueva partida</a>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_games }}</div>
+            <div class="stat-label">Partidas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.finished_games }}</div>
+            <div class="stat-label">Finalizadas</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.active_games }}</div>
+            <div class="stat-label">En curso</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_actions }}</div>
+            <div class="stat-label">Acciones</div>
+        </div>
+    </div>
+
+    <!-- Top Winners -->
+    {% if stats.top_winners %}
+    <div class="card">
+        <div class="card-title">Top ganadores</div>
+        <div class="winners-list">
+            {% for winner in stats.top_winners %}
+            <div class="winner-row">
+                <span class="winner-rank">{{ loop.index }}</span>
+                <span class="player-dot" style="background:{{ PLAYER_COLORS[winner.color].hex }}"></span>
+                <span class="winner-name-text">{{ winner.name }}</span>
+                <span class="winner-wins">{{ winner.wins }} {% if winner.wins == 1 %}victoria{% else %}victorias{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Games by Week -->
+    {% if stats.games_by_week %}
+    <div class="card">
+        <div class="card-title">Partidas por semana</div>
+        <div class="week-chart">
+            {% for week in stats.games_by_week|reverse %}
+            <div class="week-bar-group">
+                <div class="week-bar" style="height: {{ [week.count * 24, 8]|max }}px">
+                    <span class="week-bar-value">{{ week.count }}</span>
+                </div>
+                <div class="week-label">{{ week.week[-3:] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Games -->
+    {% if stats.recent_games %}
+    <div class="card">
+        <div class="card-title">Partidas recientes</div>
+        <div class="recent-games-list">
+            {% for game in stats.recent_games %}
+            <a href="{% if game.status == 'setup' %}/games/{{ game.id }}/setup{% else %}/games/{{ game.id }}{% endif %}"
+               class="recent-game-item">
+                <div class="recent-game-header">
+                    <span class="recent-game-name">{{ game.name }}</span>
+                    <span class="recent-game-status status-{{ game.status }}">
+                        {% if game.status == 'setup' %}Configurando
+                        {% elif game.status == 'playing' %}En juego
+                        {% elif game.status == 'scoring' %}Puntuacion final
+                        {% elif game.status == 'finished' %}Finalizada
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="recent-game-details">
+                    <span class="recent-game-players">
+                        {% for p in game.players %}
+                        <span class="player-dot small" style="background:{{ PLAYER_COLORS[p.color].hex }}"></span>
+                        {% endfor %}
+                        {{ game.player_count }} jugadores
+                    </span>
+                    {% if game.winner %}
+                    <span class="recent-game-winner">
+                        &#127942; {{ game.winner.name }} ({{ game.winner.score }} pts)
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="recent-game-date">
+                    {{ game.created_at.strftime('%d/%m/%Y %H:%M') }}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if stats.total_games == 0 %}
+    <div class="empty-state">
+        <p>No hay partidas todavia.</p>
+        <p>Crea tu primera partida para empezar a jugar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
