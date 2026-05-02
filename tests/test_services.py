@@ -1,7 +1,8 @@
 """Tests for scoring service functions.
 
 Tests cover: add_score, undo_last, rollback_to, recalculate_score,
-shared scoring, cache consistency, and edge cases.
+shared scoring, cache consistency, game state transitions, event-type
+validation, and finished-state guards.
 """
 
 import random
@@ -9,7 +10,16 @@ import random
 import pytest
 
 from app.models import ScoreAction, ScoreEntry
-from app.services import add_score, recalculate_score, rollback_to, undo_last
+from app.services import (
+    PLAYING_EVENT_TYPES,
+    SCORING_EVENT_TYPES,
+    add_score,
+    begin_scoring,
+    finish_game,
+    recalculate_score,
+    rollback_to,
+    undo_last,
+)
 from sqlmodel import select
 
 
@@ -269,3 +279,301 @@ class TestCacheConsistency:
                     f"Cache mismatch for {player.name}: "
                     f"score_total={player.score_total}, recalculate={recalc}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Game state transition tests
+# ---------------------------------------------------------------------------
+
+
+class TestGameStates:
+    """Tests for begin_scoring() and finish_game() state transitions."""
+
+    def test_begin_scoring_from_playing(self, session, game_with_players):
+        """begin_scoring transitions a playing game to scoring state."""
+        game, _ = game_with_players
+        assert game.status == "playing"
+
+        result = begin_scoring(session, game.id)
+
+        assert result.status == "scoring"
+        session.refresh(game)
+        assert game.status == "scoring"
+
+    def test_begin_scoring_returns_game(self, session, game_with_players):
+        """begin_scoring returns the updated Game object."""
+        game, _ = game_with_players
+
+        result = begin_scoring(session, game.id)
+
+        assert result.id == game.id
+
+    def test_begin_scoring_rejects_non_playing(self, session, game_with_players):
+        """begin_scoring raises ValueError for a non-playing game."""
+        game, _ = game_with_players
+        # Transition to scoring first
+        begin_scoring(session, game.id)
+
+        with pytest.raises(ValueError):
+            begin_scoring(session, game.id)
+
+    def test_begin_scoring_rejects_setup(self, session, engine):
+        """begin_scoring raises ValueError for a setup game."""
+        from app.models import Game
+
+        game = Game(name="Setup Game", status="setup")
+        session.add(game)
+        session.commit()
+        session.refresh(game)
+
+        with pytest.raises(ValueError):
+            begin_scoring(session, game.id)
+
+    def test_begin_scoring_game_not_found(self, session):
+        """begin_scoring raises ValueError for nonexistent game."""
+        with pytest.raises(ValueError, match="not found"):
+            begin_scoring(session, 999)
+
+    def test_finish_game_from_scoring(self, session, game_with_players):
+        """finish_game transitions a scoring game to finished state."""
+        game, _ = game_with_players
+        begin_scoring(session, game.id)
+
+        result = finish_game(session, game.id)
+
+        assert result.status == "finished"
+        session.refresh(game)
+        assert game.status == "finished"
+
+    def test_finish_game_returns_game(self, session, game_with_players):
+        """finish_game returns the updated Game object."""
+        game, _ = game_with_players
+        begin_scoring(session, game.id)
+
+        result = finish_game(session, game.id)
+
+        assert result.id == game.id
+
+    def test_finish_game_rejects_non_scoring(self, session, game_with_players):
+        """finish_game raises ValueError for a non-scoring game (e.g. playing)."""
+        game, _ = game_with_players
+
+        with pytest.raises(ValueError):
+            finish_game(session, game.id)
+
+    def test_finish_game_rejects_finished(self, session, game_with_players):
+        """finish_game raises ValueError for an already finished game."""
+        game, _ = game_with_players
+        begin_scoring(session, game.id)
+        finish_game(session, game.id)
+
+        with pytest.raises(ValueError):
+            finish_game(session, game.id)
+
+    def test_finish_game_game_not_found(self, session):
+        """finish_game raises ValueError for nonexistent game."""
+        with pytest.raises(ValueError, match="not found"):
+            finish_game(session, 999)
+
+
+# ---------------------------------------------------------------------------
+# Event type validation tests
+# ---------------------------------------------------------------------------
+
+
+class TestEventTypeValidation:
+    """Tests for event_type enforcement in add_score() per game state."""
+
+    # -- Playing state: valid event types --
+
+    def test_playing_accepts_city_completed(self, session, game_with_players):
+        """CITY_COMPLETED is accepted during playing state."""
+        game, (alice, _) = game_with_players
+        action = add_score(session, game.id, [(alice.id, 10)], "CITY_COMPLETED")
+        assert action is not None
+
+    def test_playing_accepts_road_completed(self, session, game_with_players):
+        """ROAD_COMPLETED is accepted during playing state."""
+        game, (alice, _) = game_with_players
+        action = add_score(session, game.id, [(alice.id, 5)], "ROAD_COMPLETED")
+        assert action is not None
+
+    def test_playing_accepts_monastery_completed(self, session, game_with_players):
+        """MONASTERY_COMPLETED is accepted during playing state."""
+        game, (alice, _) = game_with_players
+        action = add_score(session, game.id, [(alice.id, 9)], "MONASTERY_COMPLETED")
+        assert action is not None
+
+    def test_playing_accepts_manual(self, session, game_with_players):
+        """MANUAL is accepted during playing state."""
+        game, (alice, _) = game_with_players
+        action = add_score(session, game.id, [(alice.id, 3)], "MANUAL")
+        assert action is not None
+
+    # -- Playing state: rejected event types --
+
+    def test_playing_rejects_city_final(self, session, game_with_players):
+        """CITY_FINAL is rejected during playing state."""
+        game, (alice, _) = game_with_players
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 5)], "CITY_FINAL")
+
+    def test_playing_rejects_road_final(self, session, game_with_players):
+        """ROAD_FINAL is rejected during playing state."""
+        game, (alice, _) = game_with_players
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 5)], "ROAD_FINAL")
+
+    def test_playing_rejects_monastery_final(self, session, game_with_players):
+        """MONASTERY_FINAL is rejected during playing state."""
+        game, (alice, _) = game_with_players
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 5)], "MONASTERY_FINAL")
+
+    def test_playing_rejects_farm_final(self, session, game_with_players):
+        """FARM_FINAL is rejected during playing state."""
+        game, (alice, _) = game_with_players
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 5)], "FARM_FINAL")
+
+    # -- Scoring state: valid event types --
+
+    def test_scoring_accepts_city_final(self, session, game_with_players):
+        """CITY_FINAL is accepted during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        action = add_score(session, game.id, [(alice.id, 10)], "CITY_FINAL")
+        assert action is not None
+
+    def test_scoring_accepts_road_final(self, session, game_with_players):
+        """ROAD_FINAL is accepted during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        action = add_score(session, game.id, [(alice.id, 3)], "ROAD_FINAL")
+        assert action is not None
+
+    def test_scoring_accepts_monastery_final(self, session, game_with_players):
+        """MONASTERY_FINAL is accepted during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        action = add_score(session, game.id, [(alice.id, 5)], "MONASTERY_FINAL")
+        assert action is not None
+
+    def test_scoring_accepts_farm_final(self, session, game_with_players):
+        """FARM_FINAL is accepted during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        action = add_score(session, game.id, [(alice.id, 7)], "FARM_FINAL")
+        assert action is not None
+
+    def test_scoring_accepts_manual(self, session, game_with_players):
+        """MANUAL is accepted during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        action = add_score(session, game.id, [(alice.id, 2)], "MANUAL")
+        assert action is not None
+
+    # -- Scoring state: rejected event types --
+
+    def test_scoring_rejects_city_completed(self, session, game_with_players):
+        """CITY_COMPLETED is rejected during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 10)], "CITY_COMPLETED")
+
+    def test_scoring_rejects_road_completed(self, session, game_with_players):
+        """ROAD_COMPLETED is rejected during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 5)], "ROAD_COMPLETED")
+
+    def test_scoring_rejects_monastery_completed(self, session, game_with_players):
+        """MONASTERY_COMPLETED is rejected during scoring state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 9)], "MONASTERY_COMPLETED")
+
+    # -- Invalid states --
+
+    def test_setup_rejects_scoring(self, session, engine):
+        """add_score raises ValueError in setup state."""
+        from app.models import Game, Player
+
+        game = Game(name="Setup Game", status="setup")
+        session.add(game)
+        session.flush()
+        player = Player(game_id=game.id, name="Test", color="blue", turn_order=1)
+        session.add(player)
+        session.commit()
+        session.refresh(game)
+        session.refresh(player)
+
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(player.id, 5)], "MANUAL")
+
+    def test_finished_rejects_scoring(self, session, game_with_players):
+        """add_score raises ValueError in finished state."""
+        game, (alice, _) = game_with_players
+        begin_scoring(session, game.id)
+        finish_game(session, game.id)
+
+        with pytest.raises(ValueError):
+            add_score(session, game.id, [(alice.id, 5)], "MANUAL")
+
+
+# ---------------------------------------------------------------------------
+# Finished state guard tests
+# ---------------------------------------------------------------------------
+
+
+class TestFinishedStateGuards:
+    """Tests for undo_last/rollback_to rejection in finished state and acceptance in scoring."""
+
+    def test_undo_last_rejects_finished(self, session, game_with_players):
+        """undo_last raises ValueError for a finished game."""
+        game, (alice, _) = game_with_players
+        add_score(session, game.id, [(alice.id, 8)], "ROAD_COMPLETED")
+        begin_scoring(session, game.id)
+        finish_game(session, game.id)
+
+        with pytest.raises(ValueError):
+            undo_last(session, game.id)
+
+    def test_rollback_to_rejects_finished(self, session, game_with_players):
+        """rollback_to raises ValueError for a finished game."""
+        game, (alice, _) = game_with_players
+        a1 = add_score(session, game.id, [(alice.id, 8)], "ROAD_COMPLETED")
+        begin_scoring(session, game.id)
+        finish_game(session, game.id)
+
+        with pytest.raises(ValueError):
+            rollback_to(session, game.id, a1.id)
+
+    def test_undo_last_works_in_scoring(self, session, game_with_players):
+        """undo_last succeeds during scoring state."""
+        game, (alice, _) = game_with_players
+        add_score(session, game.id, [(alice.id, 8)], "ROAD_COMPLETED")
+        begin_scoring(session, game.id)
+
+        undone = undo_last(session, game.id)
+
+        assert undone is not None
+        assert undone.is_undone is True
+        session.refresh(alice)
+        assert alice.score_total == 0
+
+    def test_rollback_to_works_in_scoring(self, session, game_with_players):
+        """rollback_to succeeds during scoring state."""
+        game, (alice, _) = game_with_players
+        a1 = add_score(session, game.id, [(alice.id, 8)], "ROAD_COMPLETED")
+        add_score(session, game.id, [(alice.id, 12)], "CITY_COMPLETED")
+        begin_scoring(session, game.id)
+
+        count = rollback_to(session, game.id, a1.id)
+
+        assert count == 1
+        session.refresh(alice)
+        assert alice.score_total == 8
