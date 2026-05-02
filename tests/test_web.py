@@ -393,10 +393,14 @@ class TestRollback:
         post_score(client, game_id, [pids[0]], 10)  # action 2: Alice = 18
         action_ids = get_action_ids(session, game_id)
         resp = post_rollback(client, game_id, action_ids[0])
-        # Alice should be back to 8 (action 1 active, action 2 undone)
-        assert ">8<" in resp.text
-        # Alice should NOT show 18 or 0
-        assert ">18<" not in resp.text
+        # Alice should be back to 8 (action 1 active, action 2 undone).
+        # Match score table cells only — board SVG debug labels also contain ">N<".
+        tb_start = resp.text.find('id="score-table"')
+        assert tb_start != -1
+        tb_end = resp.text.find("</table>", tb_start)
+        score_table_html = resp.text[tb_start:tb_end]
+        assert 'class="score-value">8</td>' in score_table_html
+        assert 'class="score-value">18</td>' not in score_table_html
 
     def test_rollback_marks_subsequent_actions_undone(self, client, session):
         """Rollback to action 1 marks actions 2 and 3 as undone (UNDO-02)."""
@@ -549,6 +553,13 @@ class TestBoardContext:
         assert len(tokens) == 2
         # Stacking offsets must produce different coordinates
         assert tokens[0]["cx"] != tokens[1]["cx"] or tokens[0]["cy"] != tokens[1]["cy"]
+
+    def test_score_cells_36_and_37_match_track_photo(self):
+        """Cells 36 and 37 align with printed numbers on the board image."""
+        from app.web.dependencies import BOARD_CELLS
+
+        assert BOARD_CELLS[36] == (135, 156)
+        assert BOARD_CELLS[37] == (119, 190)
 
 
 class TestBoard:

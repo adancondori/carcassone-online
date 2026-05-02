@@ -235,7 +235,7 @@ def game_dashboard(
             "action_details": game_state.action_details,
             "has_actions": game_state.action_count > 0,
             "board_cells": board_cells,
-            "oob": False,
+                "oob": False,
         },
     )
 
