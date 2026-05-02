@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-05-01)
 
 **Core value:** Players can accurately track scores during a Carcassonne game with undo capability, so mistakes at the table are never permanent.
-**Current focus:** Phase 4 - SVG Board (complete)
+**Current focus:** Phase 5 - Game States (in progress)
 
 ## Current Position
 
-Phase: 4 of 5 (SVG Board)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-05-01 - Completed 04-02-PLAN.md (Board tests & visual verification)
+Phase: 5 of 5 (Game States)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-05-02 - Completed 05-01-PLAN.md (State transitions & event-type enforcement)
 
-Progress: [██████████████████░░] 91% (10/11 planned)
+Progress: [███████████████████░] 95% (11/12 planned)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 3min
-- Total execution time: 33min
+- Total execution time: 36min
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [██████████████████░░] 91% (10
 | 02-web-ui | 3/3 | 12min | 4min |
 | 03-history-and-rollback | 2/2 | 4min | 2min |
 | 04-svg-board | 2/2 | 8min | 4min |
+| 05-game-states | 1/2 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (2min), 03-01 (2min), 03-02 (2min), 04-01 (3min), 04-02 (5min)
+- Last 5 plans: 03-01 (2min), 03-02 (2min), 04-01 (3min), 04-02 (5min), 05-01 (3min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [04-01]: BOARD_CELLS + build_board_context in dependencies.py for clean route separation
 - [04-01]: Board as 5th OOB fragment in _render_dashboard_fragments (score_table + controls + action_bar + history + board)
 - [04-02]: All 50 BOARD_CELLS recalibrated from red-dot reference image (automated detection + manual fix for cells 36-37)
+- [05-01]: Event type constants as frozensets at module level for O(1) membership checks and cross-module import
+- [05-01]: Game lookup added to add_score/undo_last/rollback_to for state validation (previously had no game awareness)
 
 ### Pending Todos
 
@@ -84,6 +87,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-02T01:30Z
-Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
+Last session: 2026-05-02T01:35Z
+Stopped at: Completed 05-01-PLAN.md (State transitions & event-type enforcement)
 Resume file: None
