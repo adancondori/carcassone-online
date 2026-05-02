@@ -105,6 +105,18 @@ def get_action_ids(session, game_id):
     return [a.id for a in actions]
 
 
+def begin_scoring(client, game_id):
+    """Transition game to scoring state via POST."""
+    resp = client.post(f"/games/{game_id}/begin-scoring", follow_redirects=False)
+    assert resp.status_code == 303
+
+
+def finish_game(client, game_id):
+    """Transition game to finished state via POST."""
+    resp = client.post(f"/games/{game_id}/finish", follow_redirects=False)
+    assert resp.status_code == 303
+
+
 # ── Setup Flow Tests ────────────────────────────────────────
 
 
@@ -621,3 +633,174 @@ class TestBoard:
         board_start = resp.text.find('id="board"')
         board_section = resp.text[board_start:]
         assert board_section.count("token-meeple") == 2
+
+
+# ── Game States Tests ────────────────────────────────────────
+
+
+class TestGameStates:
+    """Tests for game state transitions, event type filtering, and finished state."""
+
+    # ── State transition tests ──
+
+    def test_begin_scoring_redirect(self, client, session):
+        """POST /begin-scoring returns 303 redirect to dashboard."""
+        game_id, _ = create_started_game(client, session)
+        resp = client.post(f"/games/{game_id}/begin-scoring", follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == f"/games/{game_id}"
+
+    def test_begin_scoring_dashboard_shows_scoring_status(self, client, session):
+        """After begin_scoring, GET dashboard contains 'Puntuacion final' in header-status."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert resp.status_code == 200
+        assert "Puntuacion final" in resp.text
+
+    def test_finish_game_redirect(self, client, session):
+        """POST /finish returns 303 redirect to dashboard."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        resp = client.post(f"/games/{game_id}/finish", follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == f"/games/{game_id}"
+
+    def test_finish_game_dashboard_shows_finished(self, client, session):
+        """After finish_game, GET dashboard contains 'Finalizada'."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert resp.status_code == 200
+        assert "Finalizada" in resp.text
+
+    # ── Event type filtering tests ──
+
+    def test_playing_shows_completed_event_types(self, client, session):
+        """Dashboard in playing state contains CITY_COMPLETED and not CITY_FINAL or FARM_FINAL."""
+        game_id, _ = create_started_game(client, session)
+        resp = client.get(f"/games/{game_id}")
+        assert "CITY_COMPLETED" in resp.text
+        assert "CITY_FINAL" not in resp.text
+        assert "FARM_FINAL" not in resp.text
+
+    def test_scoring_shows_final_event_types(self, client, session):
+        """Dashboard in scoring state contains CITY_FINAL and FARM_FINAL and not CITY_COMPLETED."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "CITY_FINAL" in resp.text
+        assert "FARM_FINAL" in resp.text
+        assert "CITY_COMPLETED" not in resp.text
+
+    def test_manual_available_in_both_states(self, client, session):
+        """Both playing and scoring dashboards contain MANUAL."""
+        game_id, _ = create_started_game(client, session)
+        # Playing state
+        resp = client.get(f"/games/{game_id}")
+        assert "MANUAL" in resp.text
+        # Scoring state
+        begin_scoring(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "MANUAL" in resp.text
+
+    # ── Finished state tests ──
+
+    def test_finished_no_controls(self, client, session):
+        """Dashboard in finished state does NOT contain score-form."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert 'id="score-form"' not in resp.text
+
+    def test_finished_no_undo_button(self, client, session):
+        """Dashboard in finished state does NOT contain 'Deshacer'."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "Deshacer" not in resp.text
+
+    def test_finished_shows_results_banner(self, client, session):
+        """Dashboard in finished state contains 'Partida finalizada'."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "Partida finalizada" in resp.text
+
+    def test_finished_shows_new_game_link(self, client, session):
+        """Dashboard in finished state contains '/games/new'."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "/games/new" in resp.text
+
+    def test_finished_still_shows_score_table(self, client, session):
+        """Dashboard in finished state contains score-table."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "score-table" in resp.text
+
+    def test_finished_history_no_rollback(self, client, session):
+        """Finished dashboard history does NOT contain rollback buttons."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 5)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "history-rollback-btn" not in resp.text
+
+    # ── Transition button tests ──
+
+    def test_playing_shows_begin_scoring_button(self, client, session):
+        """Dashboard in playing state contains begin-scoring form action."""
+        game_id, _ = create_started_game(client, session)
+        resp = client.get(f"/games/{game_id}")
+        assert "begin-scoring" in resp.text
+
+    def test_scoring_shows_finish_button(self, client, session):
+        """Dashboard in scoring state contains /finish form action."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "/finish" in resp.text
+
+    def test_finished_no_transition_button(self, client, session):
+        """Dashboard in finished state does NOT contain btn-transition."""
+        game_id, _ = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        finish_game(client, game_id)
+        resp = client.get(f"/games/{game_id}")
+        assert "btn-transition" not in resp.text
+
+    # ── Scoring in correct state tests ──
+
+    def test_score_with_final_type_in_scoring_state(self, client, session):
+        """Scoring with CITY_FINAL in scoring state succeeds."""
+        game_id, pids = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        resp = post_score(client, game_id, [pids[0]], 10, event_type="CITY_FINAL")
+        assert resp.status_code == 200
+        assert ">10<" in resp.text
+
+    def test_score_with_completed_type_in_scoring_state_rejected(self, client, session):
+        """Scoring with CITY_COMPLETED in scoring state is rejected (score stays at baseline)."""
+        game_id, pids = create_started_game(client, session)
+        begin_scoring(client, game_id)
+        # First, establish a baseline score with a valid final type
+        post_score(client, game_id, [pids[0]], 10, event_type="CITY_FINAL")
+        # Now try scoring with a playing-only type -- should be rejected
+        resp = post_score(client, game_id, [pids[0]], 5, event_type="CITY_COMPLETED")
+        # Score should remain at 10, not 15
+        tb_start = resp.text.find('id="score-table"')
+        assert tb_start != -1
+        tb_end = resp.text.find("</table>", tb_start)
+        score_table_html = resp.text[tb_start:tb_end]
+        assert 'class="score-value">10</td>' in score_table_html
+        assert 'class="score-value">15</td>' not in score_table_html
