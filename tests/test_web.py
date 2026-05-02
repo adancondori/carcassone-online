@@ -9,7 +9,7 @@ OOB attributes are present, score values are correct.
 import pytest
 from sqlmodel import select
 
-from app.models import Player
+from app.models import Player, ScoreAction
 
 
 # ── Helpers ─────────────────────────────────────────────────
@@ -84,6 +84,25 @@ def post_undo(client, game_id):
         f"/games/{game_id}/undo",
         headers={"HX-Request": "true"},
     )
+
+
+def post_rollback(client, game_id, action_id):
+    """Submit a rollback action. Returns the response."""
+    return client.post(
+        f"/games/{game_id}/rollback",
+        data={"action_id": str(action_id)},
+        headers={"HX-Request": "true"},
+    )
+
+
+def get_action_ids(session, game_id):
+    """Get action IDs from the database, ordered by id."""
+    actions = session.exec(
+        select(ScoreAction)
+        .where(ScoreAction.game_id == game_id)
+        .order_by(ScoreAction.id)
+    ).all()
+    return [a.id for a in actions]
 
 
 # ── Setup Flow Tests ────────────────────────────────────────
@@ -288,3 +307,154 @@ class TestUndo:
         assert "score-table" in resp.text
         # Both players have 0 scores
         assert resp.text.count(">0<") >= 2
+
+
+# ── History Tests ──────────────────────────────────────────
+
+
+class TestHistory:
+    """Tests for the history panel display and OOB fragment (DISPLAY-03, UNDO-03)."""
+
+    def test_score_response_includes_history(self, client, session):
+        """POST /score response includes the history OOB fragment (DISPLAY-03)."""
+        game_id, pids = create_started_game(client, session)
+        resp = post_score(client, game_id, [pids[0]], 5)
+        assert resp.status_code == 200
+        assert 'id="history"' in resp.text
+        assert 'hx-swap-oob="true"' in resp.text
+
+    def test_history_shows_event_type_label(self, client, session):
+        """History displays localized event type labels (DISPLAY-03)."""
+        game_id, pids = create_started_game(client, session)
+        # Score with CITY_COMPLETED
+        resp = post_score(client, game_id, [pids[0]], 8, event_type="CITY_COMPLETED")
+        assert "Ciudad" in resp.text
+
+        # Score with ROAD_COMPLETED
+        resp = post_score(client, game_id, [pids[0]], 3, event_type="ROAD_COMPLETED")
+        assert "Camino" in resp.text
+
+    def test_history_shows_player_names_and_points(self, client, session):
+        """History shows player name and point value for each action."""
+        game_id, pids = create_started_game(client, session)
+        resp = post_score(client, game_id, [pids[0]], 8)
+        assert "Alice" in resp.text
+        assert "+8" in resp.text
+
+    def test_history_shows_shared_scoring(self, client, session):
+        """History shows all players involved in a shared scoring action."""
+        game_id, pids = create_started_game(client, session)
+        resp = post_score(client, game_id, [pids[0], pids[1]], 12)
+        assert "Alice" in resp.text
+        assert "Bob" in resp.text
+        assert "+12" in resp.text
+
+    def test_undo_marks_action_as_undone_in_history(self, client, session):
+        """Undo response marks the action with 'undone' class in history (UNDO-03)."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 5)
+        resp = post_undo(client, game_id)
+        assert resp.status_code == 200
+        # The history item should have the 'undone' class
+        assert "undone" in resp.text
+
+    def test_dashboard_full_page_includes_history(self, client, session):
+        """GET /games/{id} for a started game includes the history panel."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 7)
+        resp = client.get(f"/games/{game_id}")
+        assert resp.status_code == 200
+        assert 'id="history"' in resp.text
+        assert "Alice" in resp.text
+        assert "+7" in resp.text
+
+
+# ── Rollback Tests ─────────────────────────────────────────
+
+
+class TestRollback:
+    """Tests for the rollback endpoint (UNDO-02, UNDO-04)."""
+
+    def test_rollback_returns_fragments(self, client, session):
+        """POST /rollback returns HTML fragments with OOB attributes (UNDO-02)."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 5)
+        post_score(client, game_id, [pids[0]], 3)
+        action_ids = get_action_ids(session, game_id)
+        resp = post_rollback(client, game_id, action_ids[0])
+        assert resp.status_code == 200
+        assert "<!DOCTYPE html>" not in resp.text
+        assert 'hx-swap-oob="true"' in resp.text
+
+    def test_rollback_reverts_scores(self, client, session):
+        """Rollback to action 1 keeps its score, removes action 2 (UNDO-04)."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 8)   # action 1: Alice = 8
+        post_score(client, game_id, [pids[0]], 10)  # action 2: Alice = 18
+        action_ids = get_action_ids(session, game_id)
+        resp = post_rollback(client, game_id, action_ids[0])
+        # Alice should be back to 8 (action 1 active, action 2 undone)
+        assert ">8<" in resp.text
+        # Alice should NOT show 18 or 0
+        assert ">18<" not in resp.text
+
+    def test_rollback_marks_subsequent_actions_undone(self, client, session):
+        """Rollback to action 1 marks actions 2 and 3 as undone (UNDO-02)."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 3)  # action 1
+        post_score(client, game_id, [pids[0]], 4)  # action 2
+        post_score(client, game_id, [pids[0]], 5)  # action 3
+        action_ids = get_action_ids(session, game_id)
+        resp = post_rollback(client, game_id, action_ids[0])
+
+        # Extract the history section from the response
+        text = resp.text
+        history_start = text.find('id="history"')
+        assert history_start != -1, "History section not found in response"
+        history_section = text[history_start:]
+
+        # Actions 2 and 3 should be marked as undone in the history
+        # Count 'undone' occurrences in history (should be 2 for actions 2 and 3)
+        assert history_section.count("undone") >= 2
+
+        # Action 1 should still be active (its history-item should NOT have undone class)
+        # Find action 1's entry: it has the lowest action id
+        action1_marker = f"#{action_ids[0]}"
+        action1_pos = history_section.find(action1_marker)
+        assert action1_pos != -1, f"Action #{action_ids[0]} not found in history"
+
+        # Check the list item containing action 1 does NOT have 'undone' class
+        # The li tag is before the action number marker
+        li_start = history_section.rfind("<li", 0, action1_pos)
+        li_fragment = history_section[li_start:action1_pos]
+        assert "undone" not in li_fragment, "Action 1 should NOT be marked as undone"
+
+    def test_rollback_shared_action(self, client, session):
+        """Rollback with shared scoring keeps shared action active (UNDO-04)."""
+        game_id, pids = create_started_game(client, session)
+        # Action 1: 10 points to both players
+        post_score(client, game_id, [pids[0], pids[1]], 10)
+        # Action 2: 5 points to Alice only
+        post_score(client, game_id, [pids[0]], 5)
+        action_ids = get_action_ids(session, game_id)
+        resp = post_rollback(client, game_id, action_ids[0])
+        # Both players should have 10 (action 1 stays active)
+        assert resp.text.count(">10<") >= 2
+        # Only action 2 should be undone (1 occurrence of undone in history)
+        history_start = resp.text.find('id="history"')
+        history_section = resp.text[history_start:]
+        assert history_section.count("undone") == 1
+
+    def test_rollback_nothing_when_last_action(self, client, session):
+        """Rollback to the only action does nothing (no subsequent actions)."""
+        game_id, pids = create_started_game(client, session)
+        post_score(client, game_id, [pids[0]], 7)
+        action_ids = get_action_ids(session, game_id)
+        resp = post_rollback(client, game_id, action_ids[0])
+        assert resp.status_code == 200
+        # Score should be unchanged (7)
+        assert ">7<" in resp.text
+        # No actions should be marked as undone
+        history_start = resp.text.find('id="history"')
+        history_section = resp.text[history_start:]
+        assert "undone" not in history_section
