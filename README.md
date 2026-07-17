@@ -40,10 +40,32 @@ Disenado mobile-first para usar en la mesa de juego desde un telefono o tablet.
 - Puntuacion final: solo tipos finales (camino/ciudad/monasterio final + granja + manual)
 - Estado finalizado: pantalla de resultados con ranking, solo lectura
 
+### Puntuación por voz 🎤
+- Push-to-talk: mantener la tecla **espacio** (laptop) o el **botón de micrófono** (teléfono)
+- Comandos en español: "agrega 5 puntos al rojo", "ciudad 8 al azul y al verde", "quita 3 al negro"
+- Transcripción **local** con faster-whisper (el audio nunca sale de tu red)
+- El color identifica al jugador; el tipo (camino/ciudad/monasterio/granja) es opcional
+- Toast con la interpretación + Deshacer inmediato si Whisper escuchó mal
+- Auditoría completa en la tabla `voice_log` (texto escuchado, interpretación, errores, latencia)
+
+### Modo mesa
+- Marcador gigante a pantalla completa (botón ⛶ del dashboard) para dejar el dispositivo visible en la mesa
+- Wake Lock: la pantalla no se apaga durante la partida (requiere HTTPS)
+- Micrófono integrado: solo mirar y hablar
+
+### Shortcuts de teclado
+| Tecla | Acción |
+|-------|--------|
+| `Espacio` (mantener) | Grabar comando de voz |
+| `Enter` | Finalizar y enviar la grabación |
+| `Esc` | Cancelar grabación / salir del modo mesa |
+| `Cmd/Ctrl + Z` | Deshacer última acción |
+| `Cmd/Ctrl + Shift + Z` | Rehacer acción deshecha |
+
 ### Interfaz
 - Mobile-first: touch targets >= 48px, sin scroll horizontal
 - Actualizaciones sin recarga via HTMX (score table, controles, historial, tablero, barra de transicion)
-- Tema oscuro inspirado en la caja de Carcassonne
+- Tema pastel "Prado" inspirado en el propio tablero: papel pradera, pergamino y miel
 
 ## Stack tecnico
 
@@ -55,8 +77,9 @@ Disenado mobile-first para usar en la mesa de juego desde un telefono o tablet.
 | Templates | Jinja2 + jinja2-fragments |
 | Interactividad | HTMX (OOB swaps, sin JS frameworks) |
 | Frontend | CSS custom (sin frameworks), SVG server-side |
-| Testing | pytest (117 tests) |
-| Deploy | Docker + docker-compose |
+| Voz | faster-whisper local + parser de gramática en Python puro |
+| Testing | pytest (213+ tests) |
+| Deploy | Docker + docker-compose (HTTP :8000, HTTPS :8443) |
 
 ## Instalacion
 
@@ -69,6 +92,31 @@ docker compose up --build
 ```
 
 Abrir http://localhost:8000
+
+> La primera transcripción de voz descarga el modelo Whisper (~250MB) a un
+> volumen Docker; las siguientes tardan ~1-2 segundos.
+
+### Voz desde el teléfono (HTTPS en la LAN)
+
+El micrófono del navegador (`getUserMedia`) exige HTTPS fuera de localhost.
+El servicio `web-https` sirve la app en el puerto 8443 con certificados
+locales de mkcert:
+
+```bash
+brew install mkcert
+mkcert -install   # instala la CA local (pide contraseña, una sola vez)
+mkdir -p certs
+mkcert -cert-file certs/local.pem -key-file certs/local-key.pem \
+    localhost 127.0.0.1 $(ipconfig getifaddr en0)
+docker compose up -d
+```
+
+Desde el teléfono: `https://<IP-de-tu-laptop>:8443`. Para que el teléfono
+confíe en el certificado, instala la CA de mkcert una vez: envíate el
+archivo `$(mkcert -CAROOT)/rootCA.pem` (AirDrop/correo) e instálalo como
+perfil de confianza (iOS: Ajustes → General → VPN y gestión de dispositivos,
+luego activarlo en Ajustes → General → Información → Ajustes de confianza
+de certificados). Alternativa rápida: aceptar el aviso del navegador.
 
 ### Sin Docker
 
@@ -123,8 +171,12 @@ app/
   services.py          # Logica de negocio: scoring, undo, rollback, estados
   db.py                # Engine, session, SQLite pragmas
   config.py            # Settings via pydantic-settings
+  voice/
+    parser.py          # Gramática de comandos de voz (Python puro, sin I/O)
+    transcriber.py     # faster-whisper con carga perezosa (Protocol inyectable)
+    service.py         # Orquestación: transcript -> parser -> add_score -> voice_log
   web/
-    routes.py          # Rutas HTTP: setup, dashboard, scoring, transiciones
+    routes.py          # Rutas HTTP: setup, dashboard, scoring, voz, transiciones
     dependencies.py    # Templates, colores, labels, coordenadas del tablero
   templates/
     base.html          # Layout base con HTMX
@@ -132,8 +184,9 @@ app/
     setup.html         # Pagina de configuracion de partida
     dashboard.html     # Tablero de juego con bloques OOB
   static/
-    css/style.css      # Estilos unificados
+    css/style.css      # Estilos unificados (tema pastel)
     js/controls.js     # UI efimera para formulario de puntuacion
+    js/voice.js        # Push-to-talk, shortcuts, modo mesa
     images/            # Foto del tablero de Carcassonne
 tests/
   conftest.py          # Fixtures: engine in-memory, session, client
@@ -148,6 +201,8 @@ tests/
 Game (id, name, status, created_at)
   |
   +-- Player (id, game_id, name, color, score_total, turn_order)
+  |
+  +-- VoiceLog (id, game_id, transcript, parsed, status, error_detail, action_id, duration_ms)
   |
   +-- ScoreAction (id, game_id, event_type, description, is_undone, created_at)
         |

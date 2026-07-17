@@ -89,6 +89,31 @@ class ScoreAction(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class VoiceLog(SQLModel, table=True):
+    """Audit trail for voice commands: heard text, interpretation, outcome.
+
+    Covers the three logs from plan v2 (transcript, scoring, errors) and
+    feeds grammar calibration via duration_ms and error_detail.
+    """
+    __tablename__ = "voice_log"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('applied', 'parse_error', 'validation_error', 'empty_audio')",
+            name="voice_log_status_check",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    game_id: int = Field(foreign_key="game.id")
+    transcript: str
+    parsed: str | None = None
+    status: str
+    error_detail: str | None = None
+    action_id: int | None = Field(default=None, foreign_key="score_action.id")
+    duration_ms: int = Field(default=0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class ScoreEntry(SQLModel, table=True):
     __tablename__ = "score_entry"
     __table_args__ = (

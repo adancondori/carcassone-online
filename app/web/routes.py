@@ -1,13 +1,17 @@
 """Web routes for Carcassonne Scoreboard setup and game management."""
 
 import logging
+import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session
 
 from app.db import get_session
+from app.models import Game
+from app.voice.service import process_voice_command
+from app.voice.transcriber import Transcriber, get_transcriber
 from app.services import (
     add_player,
     add_score,
@@ -16,6 +20,7 @@ from app.services import (
     finish_game,
     get_dashboard_stats,
     get_game_state,
+    redo_last,
     remove_player,
     rollback_to,
     start_game,
@@ -47,19 +52,20 @@ def _get_game_state_or_404(session: Session, game_id: int):
 
 
 def _render_dashboard_fragments(
-    request: Request, session: Session, game_id: int
+    request: Request, session: Session, game_id: int, voice_result=None
 ) -> HTMLResponse:
     """Render score_table + OOB controls + OOB action_bar + OOB board as a single response.
 
     Used by both score and undo routes to return multi-fragment HTMX updates.
     The primary target is the score_table (no oob attribute). Controls,
-    action_bar, history, and board are out-of-band swaps (oob=True).
+    action_bar, history, board, and voice toast are out-of-band swaps (oob=True).
     """
     game_state = _get_game_state_or_404(session, game_id)
     all_players = sorted(game_state.players, key=lambda p: p.turn_order)
     board_cells = build_board_context(game_state.players)
 
     base_context = {
+        "voice_result": voice_result,
         "game": game_state.game,
         "players": game_state.players,
         "all_players": all_players,
@@ -111,8 +117,25 @@ def _render_dashboard_fragments(
         block_name="board",
     ).body.decode()
 
+    # OOB: voice toast (interpretation or error; empty clears stale toasts)
+    voice_toast_html = templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="voice_toast",
+    ).body.decode()
+
+    # OOB: table mode overlay (giant fullscreen scores)
+    table_mode_html = templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {**base_context, "oob": True},
+        block_name="table_mode",
+    ).body.decode()
+
     return HTMLResponse(
-        content=score_html + controls_html + game_actions_html + history_html + board_html
+        content=score_html + controls_html + game_actions_html
+        + history_html + board_html + voice_toast_html + table_mode_html
     )
 
 
@@ -346,6 +369,72 @@ def undo_action(
     except ValueError as exc:
         session.rollback()
         logger.warning("undo rejected for game %s: %s", game_id, exc)
+
+    return _render_dashboard_fragments(request, session, game_id)
+
+
+# Clips are short push-to-talk recordings; anything bigger is a mistake.
+MAX_VOICE_CLIP_BYTES = 1_500_000
+
+
+@router.post("/games/{game_id}/voice")
+def voice_command_route(
+    request: Request,
+    game_id: int,
+    audio: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    transcriber: Transcriber = Depends(get_transcriber),
+):
+    """Transcribe a voice clip, apply the command, return fragments + toast.
+
+    Never returns 500 for a bad clip: every failure becomes a legible
+    toast and a voice_log row.
+    """
+    if session.get(Game, game_id) is None:
+        raise HTTPException(status_code=404, detail=f"Game {game_id} not found")
+
+    started = time.monotonic()
+    audio_bytes = audio.file.read(MAX_VOICE_CLIP_BYTES + 1)
+
+    if len(audio_bytes) > MAX_VOICE_CLIP_BYTES:
+        from app.voice.service import VoiceOutcome, _log
+
+        outcome = VoiceOutcome(
+            kind="error", status="empty_audio",
+            message="El clip es demasiado largo, intenta con un comando corto",
+            transcript="",
+        )
+        _log(session, game_id, outcome, 0)
+        return _render_dashboard_fragments(
+            request, session, game_id, voice_result=outcome
+        )
+
+    try:
+        transcript = transcriber.transcribe(audio_bytes)
+    except Exception as exc:  # audio ilegible: nunca 500
+        logger.warning("transcription failed for game %s: %s", game_id, exc)
+        transcript = ""
+
+    duration_ms = int((time.monotonic() - started) * 1000)
+    outcome = process_voice_command(session, game_id, transcript, duration_ms)
+
+    return _render_dashboard_fragments(
+        request, session, game_id, voice_result=outcome
+    )
+
+
+@router.post("/games/{game_id}/redo")
+def redo_action(
+    request: Request,
+    game_id: int,
+    session: Session = Depends(get_session),
+):
+    """Redo the most recently undone action and return HTMX fragments."""
+    try:
+        redo_last(session, game_id)
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("redo rejected for game %s: %s", game_id, exc)
 
     return _render_dashboard_fragments(request, session, game_id)
 

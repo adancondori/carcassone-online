@@ -8,12 +8,83 @@
             <div class="header-title">Carcassonne</div>
             <div class="header-game">{{ game.name }}</div>
         </div>
-        <div class="header-status">
-            {% if game.status == 'playing' %}En juego{% endif %}
-            {% if game.status == 'scoring' %}Puntuación final{% endif %}
-            {% if game.status == 'finished' %}Finalizada{% endif %}
+        <div class="header-right">
+            <div class="header-status">
+                {% if game.status == 'playing' %}En juego{% endif %}
+                {% if game.status == 'scoring' %}Puntuación final{% endif %}
+                {% if game.status == 'finished' %}Finalizada{% endif %}
+            </div>
+            {% if game.status != 'finished' %}
+            <button type="button" class="tm-open-btn help-btn" data-help-open
+                    title="Guía: comandos de voz y atajos"
+                    aria-label="Abrir guía de comandos">i</button>
+            {% endif %}
+            <button type="button" class="tm-open-btn" data-table-mode-open
+                    title="Modo mesa: marcador a pantalla completa">&#x26F6;</button>
         </div>
     </div>
+
+    {% if game.status != 'finished' %}
+    <!-- Help modal: guía de voz, atajos y modo mesa (estático, sin OOB) -->
+    <div id="help-modal" class="help-modal">
+        <div class="help-backdrop" data-help-close></div>
+        <div class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-title">
+            <div class="help-header">
+                <h2 id="help-title">Guía rápida</h2>
+                <button type="button" class="tm-close" data-help-close
+                        aria-label="Cerrar guía">&times;</button>
+            </div>
+            <div class="help-body">
+                <section class="help-section">
+                    <h3>&#127908; Cómo hablar</h3>
+                    <ol class="help-steps">
+                        <li>Mantén presionada la tecla <kbd>Espacio</kbd> (en el teléfono: el botón del micrófono).</li>
+                        <li>Di el comando. <strong>El color identifica al jugador.</strong></li>
+                        <li>Suelta (o pulsa <kbd>Enter</kbd>): verás la interpretación y los puntos se anotan al instante.</li>
+                    </ol>
+                </section>
+
+                <section class="help-section">
+                    <h3>&#128483; Qué puedes decir</h3>
+                    <ul class="help-examples">
+                        <li>&ldquo;agrega 5 puntos al rojo&rdquo;</li>
+                        <li>&ldquo;ciudad 8 al azul y al verde&rdquo; <span>&mdash; compartido, ambos reciben 8</span></li>
+                        <li>&ldquo;suma 5 al rojo y 20 al negro&rdquo; <span>&mdash; montos distintos, una sola acción</span></li>
+                        <li>&ldquo;camino 4 azul&rdquo; &middot; &ldquo;monasterio 9 rosa&rdquo;</li>
+                        <li>&ldquo;quita 3 al negro&rdquo; <span>&mdash; corrección, resta puntos</span></li>
+                        <li>&ldquo;granja 9 amarillo&rdquo; <span>&mdash; solo en puntuación final</span></li>
+                    </ul>
+                    <p class="help-note">
+                        El tipo (camino / ciudad / monasterio / granja) es opcional; sin tipo
+                        se anota como Manual. ¿Se escuchó mal? Deshacer o <kbd>Cmd+Z</kbd>
+                        lo revierte completo.
+                    </p>
+                </section>
+
+                <section class="help-section">
+                    <h3>&#9000; Atajos de teclado</h3>
+                    <table class="help-keys">
+                        <tr><td><kbd>Espacio</kbd> (mantener)</td><td>Grabar comando de voz</td></tr>
+                        <tr><td><kbd>Enter</kbd></td><td>Finalizar y enviar la grabación</td></tr>
+                        <tr><td><kbd>Esc</kbd></td><td>Cancelar grabación / cerrar guía / salir del modo mesa</td></tr>
+                        <tr><td><kbd>Cmd/Ctrl + Z</kbd></td><td>Deshacer última acción</td></tr>
+                        <tr><td><kbd>Cmd/Ctrl + Shift + Z</kbd></td><td>Rehacer acción deshecha</td></tr>
+                    </table>
+                </section>
+
+                <section class="help-section">
+                    <h3>&#x26F6; Modo mesa</h3>
+                    <p class="help-note">
+                        Marcador gigante a pantalla completa para dejar el dispositivo
+                        visible en la mesa: cada card lleva el color del jugador, la
+                        pantalla no se apaga y el micrófono sigue activo. Se abre con
+                        el botón &#x26F6; o desde el tab Voz; se cierra con <kbd>Esc</kbd> o &times;.
+                    </p>
+                </section>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="main-workspace">
         <div class="main-column">
@@ -36,19 +107,26 @@
                         " />
                     </defs>
 
-                    <!-- Board photo background -->
+                    <!-- Board photo background (muted via CSS so tokens pop) -->
                     <image href="/static/images/carcassonneok.jpg"
+                           class="board-photo"
                            width="600" height="420"
                            preserveAspectRatio="none" />
 
-                    <!-- Subtle warm veil to blend with the pastel theme -->
-                    <rect width="600" height="420" fill="rgba(252, 252, 244, 0.10)" />
+                    <!-- Warm parchment veil to blend with the pastel theme -->
+                    <rect width="600" height="420" fill="rgba(252, 252, 244, 0.22)" />
 
-                    <!-- Player tokens -->
-                    {% for cell_num, cell_players in board_cells.items() %}
-                    {% for bp in cell_players %}
+                    <!-- Player tokens: each occupied cell gets a parchment
+                         plinth disc so tokens read instantly over the art -->
+                    {% for cell_num, cell in board_cells.items() %}
+                    <circle class="cell-plinth"
+                            cx="{{ cell.cx }}" cy="{{ cell.cy }}"
+                            r="{{ 17 if cell.tokens|length == 1 else 30 }}" />
+                    {% endfor %}
+                    {% for cell_num, cell in board_cells.items() %}
+                    {% for bp in cell.tokens %}
                     <g class="token-meeple"
-                       transform="translate({{ bp.cx }}, {{ bp.cy }})">
+                       transform="translate({{ bp.cx }}, {{ bp.cy }}) scale(1.35)">
                         <use href="#meeple" class="token-border" transform="scale(1.15)" />
                         <use href="#meeple" fill="{{ bp.hex }}" />
                         <text x="0" y="1"
@@ -57,7 +135,7 @@
                         </text>
                     </g>
                     {% if bp.lap > 0 %}
-                    <g transform="translate({{ bp.cx + 8 }}, {{ bp.cy - 14 }})">
+                    <g transform="translate({{ bp.cx + 11 }}, {{ bp.cy - 18 }})">
                         <rect x="-9" y="-6" width="18" height="12"
                               rx="3" class="lap-badge-bg" />
                         <text x="0" y="0" class="lap-badge">x{{ bp.lap }}</text>
@@ -138,9 +216,40 @@
 
         <!-- Controls Block -->
         {% block controls %}
-        <div id="controls" class="controls"
+        <div id="controls" class="controls" data-game-id="{{ game.id }}"
              {% if oob %}hx-swap-oob="true"{% endif %}>
             {% if game.status != 'finished' %}
+            <!-- Input mode tabs: manual controls vs voice -->
+            <div class="mode-tabs" role="tablist">
+                <button type="button" class="mode-tab active" data-mode="manual">Manual</button>
+                <button type="button" class="mode-tab" data-mode="voice">&#127908; Voz</button>
+            </div>
+
+            <div id="voice-panel" hidden>
+                <!-- Grilla de cards con el color de cada jugador (ranking desc) -->
+                <div class="vp-grid">
+                    {% for player in players %}
+                    <div class="vp-card{% if player.color in ('yellow', 'pink') %} pcard-dark{% endif %}{% if loop.first %} vp-leader{% endif %}" style="background: {{ PLAYER_COLORS[player.color].hex }}">
+                        <div class="vp-name">{{ player.name }}</div>
+                        <div class="vp-score">{{ player.score_total }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="voice-mic-btn" class="voice-mic"
+                        aria-label="Mantener presionado para hablar">&#127908;</button>
+                <div id="voice-status" class="voice-status">
+                    Mantén presionado el micrófono o la tecla espacio
+                </div>
+                <div class="voice-hint">
+                    Di: &ldquo;agrega 5 puntos al rojo&rdquo; &middot;
+                    &ldquo;ciudad 8 al azul y al verde&rdquo; &middot;
+                    &ldquo;quita 3 al negro&rdquo;
+                </div>
+                <button type="button" class="vp-maximize" data-table-mode-open>
+                    &#x26F6; Pantalla completa
+                </button>
+            </div>
+
             <form id="score-form"
                   hx-post="/games/{{ game.id }}/score"
                   hx-target="#score-table"
@@ -229,13 +338,6 @@
                 Terminar
             </button>
         </form>
-        <button class="ga-btn ga-undo"
-                hx-post="/games/{{ game.id }}/undo"
-                hx-target="#score-table"
-                hx-swap="outerHTML"
-                {% if not has_actions %}disabled{% endif %}>
-            &#8630; Deshacer
-        </button>
         {% elif game.status == 'scoring' %}
         <form method="post" action="/games/{{ game.id }}/finish">
             <button type="submit" class="ga-btn ga-finish"
@@ -243,12 +345,22 @@
                 Terminar partida
             </button>
         </form>
+        {% endif %}
+        {% if game.status in ('playing', 'scoring') %}
         <button class="ga-btn ga-undo"
                 hx-post="/games/{{ game.id }}/undo"
                 hx-target="#score-table"
                 hx-swap="outerHTML"
+                title="Deshacer (Cmd+Z)"
                 {% if not has_actions %}disabled{% endif %}>
             &#8630; Deshacer
+        </button>
+        <button class="ga-btn ga-undo"
+                hx-post="/games/{{ game.id }}/redo"
+                hx-target="#score-table"
+                hx-swap="outerHTML"
+                title="Rehacer (Cmd+Shift+Z)">
+            &#8631; Rehacer
         </button>
         {% endif %}
     </div>
@@ -296,9 +408,57 @@
         </ul>
     </div>
     {% endblock %}
+
+    <!-- Table Mode Block (marcador gigante a pantalla completa) -->
+    {% block table_mode %}
+    <div id="table-mode" class="table-mode"
+         {% if oob %}hx-swap-oob="true"{% endif %}>
+        <div class="tm-header">
+            <span class="tm-title">{{ game.name }}</span>
+            <button type="button" class="tm-close" data-table-mode-close
+                    aria-label="Salir del modo mesa">&times;</button>
+        </div>
+        <div class="tm-grid tm-grid-{{ players|length }}">
+            {% for player in players %}
+            <div class="tm-player{% if player.color in ('yellow', 'pink') %} pcard-dark{% endif %}{% if loop.first %} tm-leader{% endif %}" style="background: {{ PLAYER_COLORS[player.color].hex }}">
+                <div class="tm-name">{{ player.name }}</div>
+                <div class="tm-score">{{ player.score_total }}</div>
+                <div class="tm-meta">casilla {{ player.current_cell }}{% if player.lap > 0 %} &middot; vuelta x{{ player.lap }}{% endif %}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% if game.status in ('playing', 'scoring') %}
+        <div class="tm-voice">
+            <button type="button" class="voice-mic tm-mic" data-voice-mic
+                    aria-label="Mantener presionado para hablar">&#127908;</button>
+            <div class="voice-status tm-status">Mantén presionado para hablar</div>
+        </div>
+        {% endif %}
+    </div>
+    {% endblock %}
+
+    <!-- Voice Toast Block (interpretación del último comando de voz) -->
+    {% block voice_toast %}
+    <div id="voice-toast"
+         class="voice-toast{% if voice_result %} show {{ voice_result.kind }}{% endif %}"
+         {% if oob %}hx-swap-oob="true"{% endif %}>
+        {% if voice_result %}
+        <div class="voice-toast-transcript">&ldquo;{{ voice_result.transcript }}&rdquo;</div>
+        <div class="voice-toast-message">
+            {% if voice_result.kind == 'success' %}
+                {% for e in voice_result.entries %}<span class="player-dot meeple-dot" style="background:{{ PLAYER_COLORS[e.color].hex }}"></span>{{ e.name }} {{ '%+d'|format(e.points) }}{% if not loop.last %}, {% endif %}{% endfor %}
+                {%- if voice_result.event_type and voice_result.event_type != 'MANUAL' %} &mdash; {{ EVENT_TYPE_LABELS[voice_result.event_type] }}{% endif %}
+            {% else %}
+                {{ voice_result.message }}
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endblock %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/js/controls.js"></script>
+<script src="/static/js/voice.js"></script>
 {% endblock %}

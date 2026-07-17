@@ -7,11 +7,16 @@ from alembic import context
 
 # Import ALL models so that SQLModel.metadata is fully populated
 # before autogenerate inspects it.
-from app.models import Game, Player, ScoreAction, ScoreEntry  # noqa: F401
+from app.config import settings
+from app.models import Game, Player, ScoreAction, ScoreEntry, VoiceLog  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Single source of truth: the same DATABASE_URL the app uses (env/.env),
+# so migrations always target the app's database.
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

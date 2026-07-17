@@ -37,3 +37,6 @@ coverage.xml
 
 # pytest
 .pytest_cache/
+
+# Local TLS certs (mkcert) — never commit private keys
+certs/

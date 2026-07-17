@@ -230,6 +230,58 @@ def undo_last(session: Session, game_id: int) -> ScoreAction | None:
     return last_action
 
 
+def redo_last(session: Session, game_id: int) -> ScoreAction | None:
+    """Reactivate the most recently undone ScoreAction (editor-style redo).
+
+    Only actions undone *after* the last active action are redoable — adding
+    a new action invalidates the redo stack, like any editor. Successive
+    redos restore actions in their original order.
+
+    Args:
+        session: Database session.
+        game_id: The game to redo in.
+
+    Returns:
+        The reactivated ScoreAction, or None if nothing is redoable.
+
+    Raises:
+        ValueError: If game does not exist or is in finished state.
+    """
+    game = session.get(Game, game_id)
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status == "finished":
+        raise ValueError("Cannot redo in a finished game")
+
+    last_active_id = session.exec(
+        select(func.coalesce(func.max(ScoreAction.id), 0))
+        .where(ScoreAction.game_id == game_id)
+        .where(ScoreAction.is_undone == False)  # noqa: E712
+    ).one()
+
+    redoable = session.exec(
+        select(ScoreAction)
+        .where(ScoreAction.game_id == game_id)
+        .where(ScoreAction.is_undone == True)  # noqa: E712
+        .where(ScoreAction.id > last_active_id)
+        .order_by(ScoreAction.id)
+        .limit(1)
+    ).first()
+    if redoable is None:
+        return None
+
+    redoable.is_undone = False
+
+    entries = session.exec(
+        select(ScoreEntry).where(ScoreEntry.action_id == redoable.id)
+    ).all()
+    for pid in {e.player_id for e in entries}:
+        recalculate_score(session, pid)
+
+    session.commit()
+    return redoable
+
+
 def rollback_to(session: Session, game_id: int, action_id: int) -> int:
     """Mark all active actions after action_id as undone and recalculate scores.
 

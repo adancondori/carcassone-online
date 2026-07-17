@@ -19,6 +19,7 @@ from app.services import (
     create_game,
     finish_game,
     recalculate_score,
+    redo_last,
     rollback_to,
     undo_last,
 )
@@ -693,3 +694,81 @@ class TestNonexistentGameGuards:
         """rollback_to on a nonexistent game raises ValueError."""
         with pytest.raises(ValueError, match="not found"):
             rollback_to(session, 9999, 1)
+
+
+# ---------------------------------------------------------------------------
+# redo_last tests (plan v2, fase 2)
+# ---------------------------------------------------------------------------
+
+
+class TestRedoLast:
+    def test_redo_reactivates_last_undone(self, session, game_with_players):
+        """Undo then redo returns the game to its original state."""
+        game, (alice, _) = game_with_players
+        add_score(session, game.id, [(alice.id, 8)], "ROAD_COMPLETED")
+
+        undo_last(session, game.id)
+        redone = redo_last(session, game.id)
+
+        assert redone is not None
+        assert redone.is_undone is False
+        session.refresh(alice)
+        assert alice.score_total == 8
+
+    def test_redo_order_is_stack_like(self, session, game_with_players):
+        """undo, undo, redo, redo restores actions in original order."""
+        game, (alice, _) = game_with_players
+        a1 = add_score(session, game.id, [(alice.id, 5)], "ROAD_COMPLETED")
+        a2 = add_score(session, game.id, [(alice.id, 10)], "CITY_COMPLETED")
+
+        undo_last(session, game.id)  # undoes a2
+        undo_last(session, game.id)  # undoes a1
+
+        first_redo = redo_last(session, game.id)
+        assert first_redo.id == a1.id
+        second_redo = redo_last(session, game.id)
+        assert second_redo.id == a2.id
+        session.refresh(alice)
+        assert alice.score_total == 15
+
+    def test_redo_with_nothing_undone_returns_none(self, session, game_with_players):
+        game, (alice, _) = game_with_players
+        add_score(session, game.id, [(alice.id, 5)], "ROAD_COMPLETED")
+
+        assert redo_last(session, game.id) is None
+
+    def test_new_action_invalidates_redo(self, session, game_with_players):
+        """Scoring after an undo clears the redo stack (editor semantics)."""
+        game, (alice, _) = game_with_players
+        add_score(session, game.id, [(alice.id, 5)], "ROAD_COMPLETED")
+        undo_last(session, game.id)
+        add_score(session, game.id, [(alice.id, 3)], "MANUAL")
+
+        assert redo_last(session, game.id) is None
+        session.refresh(alice)
+        assert alice.score_total == 3
+
+    def test_redo_shared_action_restores_all_players(self, session, game_with_players):
+        game, (alice, bob) = game_with_players
+        add_score(session, game.id, [(alice.id, 10), (bob.id, 10)], "CITY_COMPLETED")
+        undo_last(session, game.id)
+
+        redo_last(session, game.id)
+
+        session.refresh(alice)
+        session.refresh(bob)
+        assert alice.score_total == 10
+        assert bob.score_total == 10
+
+    def test_redo_blocked_in_finished_game(self, session, game_with_players):
+        game, (alice, _) = game_with_players
+        add_score(session, game.id, [(alice.id, 5)], "ROAD_COMPLETED")
+        undo_last(session, game.id)
+        finish_game(session, game.id)
+
+        with pytest.raises(ValueError, match="finished"):
+            redo_last(session, game.id)
+
+    def test_redo_nonexistent_game(self, session):
+        with pytest.raises(ValueError, match="not found"):
+            redo_last(session, 9999)

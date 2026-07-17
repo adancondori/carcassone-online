@@ -102,7 +102,7 @@ def _stack_offset(index: int, total: int) -> tuple[float, float]:
     if total == 1:
         return (0.0, 0.0)
     angle = (2 * math.pi * index) / total - math.pi / 2
-    radius = 13.0 if total <= 3 else 15.0
+    radius = 16.0 if total <= 3 else 19.0
     return (math.cos(angle) * radius, math.sin(angle) * radius)
 
 
@@ -110,7 +110,9 @@ def build_board_context(players: list) -> dict:
     """Build board_cells dict for the SVG board template.
 
     Groups players by cell (score_total % 50), computes stacking offsets,
-    and returns {cell_num: [{"cx", "cy", "hex", "color", "initial", "lap"}, ...]}.
+    and returns {cell_num: {"cx", "cy", "tokens": [...]}} where cx/cy are
+    the cell base coordinates (used to draw the plinth disc under tokens)
+    and each token is {"cx", "cy", "hex", "color", "initial", "lap"}.
     """
     if not players:
         return {}
@@ -120,7 +122,7 @@ def build_board_context(players: list) -> dict:
     for player in players:
         cell_groups[player.current_cell].append(player)
 
-    result: dict[int, list[dict]] = {}
+    result: dict[int, dict] = {}
     for cell_num, cell_players in cell_groups.items():
         base_x, base_y = BOARD_CELLS[cell_num]
         total = len(cell_players)
@@ -135,6 +137,6 @@ def build_board_context(players: list) -> dict:
                 "initial": player.name[0],
                 "lap": player.lap,
             })
-        result[cell_num] = tokens
+        result[cell_num] = {"cx": base_x, "cy": base_y, "tokens": tokens}
 
     return result

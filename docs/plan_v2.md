@@ -1,6 +1,9 @@
 # Plan v2 — Puntuación por voz y modo mesa
 
-> **Estado: APROBADO** (2026-07-17). Pendiente: iniciar Fase 1 (parser).
+> **Estado: EJECUTADO** (2026-07-17). Fases 1-7 implementadas y verificadas
+> (213+ tests, pipeline de voz probado end-to-end en Docker por HTTP y HTTPS).
+> Pendiente manual: `mkcert -install` (pide contraseña) y calibración con
+> teléfono real en la mesa (revisar `voice_log` tras las primeras partidas).
 
 ## Problema
 

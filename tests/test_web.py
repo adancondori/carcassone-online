@@ -506,7 +506,11 @@ class TestBoardContext:
 
         result = build_board_context([player])
         assert 0 in result
-        tokens = result[0]
+        cell = result[0]
+        # Cell carries its base coords for the plinth disc under tokens
+        assert cell["cx"] == BOARD_CELLS[0][0]
+        assert cell["cy"] == BOARD_CELLS[0][1]
+        tokens = cell["tokens"]
         assert len(tokens) == 1
         t = tokens[0]
         # No stacking offset for single player
@@ -534,7 +538,7 @@ class TestBoardContext:
 
         result = build_board_context([player])
         assert 5 in result  # 55 % 50 = 5
-        t = result[5][0]
+        t = result[5]["tokens"][0]
         assert t["cx"] == BOARD_CELLS[5][0]
         assert t["cy"] == BOARD_CELLS[5][1]
         assert t["lap"] == 1  # 55 // 50 = 1
@@ -561,7 +565,7 @@ class TestBoardContext:
 
         result = build_board_context([alice, bob])
         assert 0 in result
-        tokens = result[0]
+        tokens = result[0]["tokens"]
         assert len(tokens) == 2
         # Stacking offsets must produce different coordinates
         assert tokens[0]["cx"] != tokens[1]["cx"] or tokens[0]["cy"] != tokens[1]["cy"]
@@ -837,3 +841,59 @@ class TestCreateGameValidation:
         resp = client.post("/games", data={"name": "   "}, follow_redirects=False)
         assert resp.status_code == 303
         assert resp.headers["location"] == "/games/new"
+
+
+# ---------------------------------------------------------------------------
+# Redo route (plan v2, fase 2)
+# ---------------------------------------------------------------------------
+
+
+class TestRedoRoute:
+    def test_redo_restores_score_in_fragments(self, client, session):
+        """POST /redo after an undo returns fragments with the score restored."""
+        game_id, player_ids = create_started_game(client, session)
+        post_score(client, game_id, [player_ids[0]], 8)
+        post_undo(client, game_id)
+
+        resp = client.post(
+            f"/games/{game_id}/redo", headers={"HX-Request": "true"}
+        )
+
+        assert resp.status_code == 200
+        assert "<!DOCTYPE html>" not in resp.text
+        assert 'class="score-value">8</td>' in resp.text
+
+    def test_redo_with_nothing_undone_returns_current_state(self, client, session):
+        game_id, player_ids = create_started_game(client, session)
+        post_score(client, game_id, [player_ids[0]], 5)
+
+        resp = client.post(
+            f"/games/{game_id}/redo", headers={"HX-Request": "true"}
+        )
+
+        assert resp.status_code == 200
+        assert 'class="score-value">5</td>' in resp.text
+
+
+class TestBoardReadability:
+    """The board photo recedes; tokens sit on parchment plinths (UX pass)."""
+
+    def test_board_photo_is_muted(self, client, session):
+        """The photo carries the board-photo class that desaturates it."""
+        game_id, player_ids = create_started_game(client, session)
+
+        resp = client.get(f"/games/{game_id}")
+
+        assert 'class="board-photo"' in resp.text
+
+    def test_occupied_cells_have_plinth(self, client, session):
+        """Each occupied cell renders a plinth disc under its tokens."""
+        game_id, player_ids = create_started_game(client, session)
+        post_score(client, game_id, [player_ids[0]], 5)
+
+        resp = client.get(f"/games/{game_id}")
+
+        assert 'class="cell-plinth"' in resp.text
+        # Two occupied cells (score 5 and score 0) -> two plinths
+        board = resp.text.split('id="board"')[1].split('id="score-table"')[0]
+        assert board.count('cell-plinth') == 2

@@ -7,8 +7,29 @@ services:
     volumes:
       - .:/code
       - db_data:/code/data
+      # Whisper model cache: avoids re-downloading ~250MB on each rebuild
+      - whisper_cache:/root/.cache/huggingface
+    env_file:
+      - .env
+
+  # HTTPS endpoint for phones on the LAN: getUserMedia (microphone) and
+  # Wake Lock require a secure context outside localhost. Certs generated
+  # with mkcert (see README). Shares the same database volume as `web`.
+  web-https:
+    build: .
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8443 --reload
+      --ssl-keyfile /code/certs/local-key.pem
+      --ssl-certfile /code/certs/local.pem
+    ports:
+      - "8443:8443"
+    volumes:
+      - .:/code
+      - db_data:/code/data
+      - whisper_cache:/root/.cache/huggingface
     env_file:
       - .env
 
 volumes:
   db_data:
+  whisper_cache:
