@@ -10,7 +10,7 @@
         </div>
         <div class="header-status">
             {% if game.status == 'playing' %}En juego{% endif %}
-            {% if game.status == 'scoring' %}Puntuacion final{% endif %}
+            {% if game.status == 'scoring' %}Puntuación final{% endif %}
             {% if game.status == 'finished' %}Finalizada{% endif %}
         </div>
     </div>
@@ -41,8 +41,8 @@
                            width="600" height="420"
                            preserveAspectRatio="none" />
 
-                    <!-- Subtle darkening overlay -->
-                    <rect width="600" height="420" fill="rgba(0,0,0,0.08)" />
+                    <!-- Subtle warm veil to blend with the pastel theme -->
+                    <rect width="600" height="420" fill="rgba(252, 252, 244, 0.10)" />
 
                     <!-- Player tokens -->
                     {% for cell_num, cell_players in board_cells.items() %}
@@ -77,7 +77,7 @@
                     <thead>
                         <tr>
                             <th colspan="2">Jugador</th>
-                            <th>Score</th>
+                            <th>Puntos</th>
                             <th>Casilla</th>
                             <th>Vuelta</th>
                         </tr>
@@ -85,7 +85,7 @@
                     <tbody>
                         {% for player in players %}
                         <tr>
-                            <td><span class="player-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span></td>
+                            <td><span class="player-dot meeple-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span></td>
                             <td>{{ player.name }}</td>
                             <td class="score-value">{{ player.score_total }}</td>
                             <td class="cell-value">{{ player.current_cell }}</td>
@@ -113,7 +113,7 @@
                     {% for player in players %}
                     <div class="ranking-row">
                         <span class="ranking-position">{{ loop.index }}.</span>
-                        <span class="player-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span>
+                        <span class="player-dot meeple-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span>
                         <span class="ranking-name">{{ player.name }}</span>
                         <span class="ranking-score">{{ player.score_total }} pts</span>
                     </div>
@@ -153,7 +153,7 @@
                         {% for player in all_players %}
                         <label class="player-chip" data-player-id="{{ player.id }}">
                             <input type="checkbox" name="player_ids" value="{{ player.id }}" style="display:none">
-                            <span class="chip-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span>
+                            <span class="chip-dot meeple-dot" style="background:{{ PLAYER_COLORS[player.color].hex }}"></span>
                             {{ player.name }}
                         </label>
                         {% endfor %}
@@ -219,13 +219,13 @@
         {% if game.status == 'playing' %}
         <form method="post" action="/games/{{ game.id }}/begin-scoring">
             <button type="submit" class="ga-btn ga-scoring"
-                    onclick="return confirm('Cambiar a puntuacion final? Solo se podran anotar puntuaciones finales.')">
+                    onclick="return confirm('¿Cambiar a puntuación final? Solo se podrán anotar puntuaciones finales.')">
                 Punt. final
             </button>
         </form>
         <form method="post" action="/games/{{ game.id }}/finish">
             <button type="submit" class="ga-btn ga-finish"
-                    onclick="return confirm('Terminar la partida sin puntuacion final? No se podran hacer mas cambios.')">
+                    onclick="return confirm('¿Terminar la partida sin puntuación final? No se podrán hacer más cambios.')">
                 Terminar
             </button>
         </form>
@@ -239,7 +239,7 @@
         {% elif game.status == 'scoring' %}
         <form method="post" action="/games/{{ game.id }}/finish">
             <button type="submit" class="ga-btn ga-finish"
-                    onclick="return confirm('Terminar la partida? No se podran hacer mas cambios.')">
+                    onclick="return confirm('¿Terminar la partida? No se podrán hacer más cambios.')">
                 Terminar partida
             </button>
         </form>
@@ -269,7 +269,7 @@
                     <span class="history-type">{{ EVENT_TYPE_LABELS[detail.action.event_type] }}: </span>
                     <span class="history-players">
                         {% for entry in detail.entries %}
-                        <span style="color:{{ PLAYER_COLORS[entry.player_color].hex }}">{{ entry.player_name }}</span> +{{ entry.points }}{% if not loop.last %}, {% endif %}
+                        <span class="player-dot meeple-dot" style="background:{{ PLAYER_COLORS[entry.player_color].hex }}"></span>{{ entry.player_name }} +{{ entry.points }}{% if not loop.last %}, {% endif %}
                         {% endfor %}
                     </span>
                     {% if detail.action.description %}
@@ -282,14 +282,15 @@
                         hx-vals='{"action_id": "{{ detail.action.id }}"}'
                         hx-target="#score-table"
                         hx-swap="outerHTML"
-                        hx-confirm="Rollback to action #{{ detail.action.id }}?">
+                        hx-confirm="¿Volver a la acción #{{ detail.action.id }}? Las acciones posteriores se desharán."
+                        title="Volver a este punto">
                     &#8630;
                 </button>
                 {% endif %}
             </li>
             {% else %}
-            <li class="history-item" style="color:var(--text-muted); justify-content:center">
-                Sin acciones todavia
+            <li class="history-item" style="color:var(--ink-mute); justify-content:center">
+                Sin acciones todavía
             </li>
             {% endfor %}
         </ul>

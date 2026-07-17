@@ -1,8 +1,9 @@
 """Web routes for Carcassonne Scoreboard setup and game management."""
 
+import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session
 
@@ -29,10 +30,20 @@ from app.web.dependencies import (
     templates,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
 # ── Helpers ──────────────────────────────────────────────────
+
+
+def _get_game_state_or_404(session: Session, game_id: int):
+    """Load game state, translating a missing game into an HTTP 404."""
+    try:
+        return get_game_state(session, game_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 def _render_dashboard_fragments(
@@ -44,12 +55,11 @@ def _render_dashboard_fragments(
     The primary target is the score_table (no oob attribute). Controls,
     action_bar, history, and board are out-of-band swaps (oob=True).
     """
-    game_state = get_game_state(session, game_id)
+    game_state = _get_game_state_or_404(session, game_id)
     all_players = sorted(game_state.players, key=lambda p: p.turn_order)
     board_cells = build_board_context(game_state.players)
 
     base_context = {
-        "request": request,
         "game": game_state.game,
         "players": game_state.players,
         "all_players": all_players,
@@ -63,6 +73,7 @@ def _render_dashboard_fragments(
 
     # Primary target: score table (no oob attribute)
     score_html = templates.TemplateResponse(
+        request,
         "dashboard.html",
         {**base_context, "oob": False},
         block_name="score_table",
@@ -70,6 +81,7 @@ def _render_dashboard_fragments(
 
     # OOB: controls (resets form to clean state)
     controls_html = templates.TemplateResponse(
+        request,
         "dashboard.html",
         {**base_context, "oob": True},
         block_name="controls",
@@ -77,6 +89,7 @@ def _render_dashboard_fragments(
 
     # OOB: game actions bar (transition buttons + undo)
     game_actions_html = templates.TemplateResponse(
+        request,
         "dashboard.html",
         {**base_context, "oob": True},
         block_name="game_actions",
@@ -84,6 +97,7 @@ def _render_dashboard_fragments(
 
     # OOB: history (action list with rollback buttons)
     history_html = templates.TemplateResponse(
+        request,
         "dashboard.html",
         {**base_context, "oob": True},
         block_name="history",
@@ -91,6 +105,7 @@ def _render_dashboard_fragments(
 
     # OOB: board (SVG scoring track with meeple tokens)
     board_html = templates.TemplateResponse(
+        request,
         "dashboard.html",
         {**base_context, "oob": True},
         block_name="board",
@@ -112,9 +127,9 @@ def home_page(
     """Render the home dashboard with stats across all games."""
     stats = get_dashboard_stats(session)
     return templates.TemplateResponse(
+        request,
         "home.html",
         {
-            "request": request,
             "stats": stats,
             "PLAYER_COLORS": PLAYER_COLORS,
         },
@@ -128,9 +143,9 @@ def home_page(
 def new_game_page(request: Request):
     """Render the setup page with the game name form."""
     return templates.TemplateResponse(
+        request,
         "setup.html",
         {
-            "request": request,
             "game": None,
             "players": [],
             "available_colors": PLAYER_COLORS,
@@ -146,7 +161,12 @@ def create_game_route(
     session: Session = Depends(get_session),
 ):
     """Create a new game and redirect to its setup page."""
-    game = create_game(session, name)
+    try:
+        game = create_game(session, name)
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("create_game rejected: %s", exc)
+        return RedirectResponse(url="/games/new", status_code=303)
     return RedirectResponse(url=f"/games/{game.id}/setup", status_code=303)
 
 
@@ -157,7 +177,7 @@ def setup_page(
     session: Session = Depends(get_session),
 ):
     """Render the setup page with player management for an existing game."""
-    game_state = get_game_state(session, game_id)
+    game_state = _get_game_state_or_404(session, game_id)
 
     # If game is no longer in setup, redirect to dashboard
     if game_state.game.status != "setup":
@@ -172,9 +192,9 @@ def setup_page(
     }
 
     return templates.TemplateResponse(
+        request,
         "setup.html",
         {
-            "request": request,
             "game": game_state.game,
             "players": players_by_order,
             "available_colors": available_colors,
@@ -194,8 +214,9 @@ def add_player_route(
     """Add a player to the game and redirect back to setup."""
     try:
         add_player(session, game_id, name, color)
-    except ValueError:
-        pass  # Constraint violations handled by redirect back to setup
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("add_player rejected for game %s: %s", game_id, exc)
     return RedirectResponse(url=f"/games/{game_id}/setup", status_code=303)
 
 
@@ -208,8 +229,9 @@ def delete_player_route(
     """Remove a player from the game and redirect back to setup."""
     try:
         remove_player(session, game_id, player_id)
-    except ValueError:
-        pass  # Player already removed or game not in setup
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("remove_player rejected for game %s: %s", game_id, exc)
     return RedirectResponse(url=f"/games/{game_id}/setup", status_code=303)
 
 
@@ -221,7 +243,9 @@ def start_game_route(
     """Start the game and redirect to the dashboard."""
     try:
         start_game(session, game_id)
-    except ValueError:
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("start_game rejected for game %s: %s", game_id, exc)
         return RedirectResponse(
             url=f"/games/{game_id}/setup", status_code=303
         )
@@ -238,7 +262,7 @@ def game_dashboard(
     session: Session = Depends(get_session),
 ):
     """Render the full game dashboard page."""
-    game_state = get_game_state(session, game_id)
+    game_state = _get_game_state_or_404(session, game_id)
 
     # If still in setup, redirect there
     if game_state.game.status == "setup":
@@ -250,9 +274,9 @@ def game_dashboard(
     board_cells = build_board_context(game_state.players)
 
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "game": game_state.game,
             "players": game_state.players,
             "all_players": all_players,
@@ -272,8 +296,9 @@ def begin_scoring_route(game_id: int, session: Session = Depends(get_session)):
     """Transition from playing to final scoring phase."""
     try:
         begin_scoring(session, game_id)
-    except ValueError:
-        pass
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("begin_scoring rejected for game %s: %s", game_id, exc)
     return RedirectResponse(url=f"/games/{game_id}", status_code=303)
 
 
@@ -282,8 +307,9 @@ def finish_game_route(game_id: int, session: Session = Depends(get_session)):
     """Transition from scoring to finished state."""
     try:
         finish_game(session, game_id)
-    except ValueError:
-        pass
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("finish_game rejected for game %s: %s", game_id, exc)
     return RedirectResponse(url=f"/games/{game_id}", status_code=303)
 
 
@@ -301,8 +327,9 @@ def score_action(
     try:
         player_points = [(pid, points) for pid in player_ids]
         add_score(session, game_id, player_points, event_type, description)
-    except ValueError:
-        pass  # Service errors handled silently; fragments show current state
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("add_score rejected for game %s: %s", game_id, exc)
 
     return _render_dashboard_fragments(request, session, game_id)
 
@@ -316,8 +343,9 @@ def undo_action(
     """Undo the last scoring action and return HTMX fragments."""
     try:
         undo_last(session, game_id)
-    except ValueError:
-        pass  # No active actions to undo; fragments show current state
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("undo rejected for game %s: %s", game_id, exc)
 
     return _render_dashboard_fragments(request, session, game_id)
 
@@ -332,7 +360,8 @@ def rollback_action(
     """Rollback to a specific action and return HTMX fragments."""
     try:
         rollback_to(session, game_id, action_id)
-    except ValueError:
-        pass  # Invalid action_id; fragments show current state
+    except ValueError as exc:
+        session.rollback()
+        logger.warning("rollback rejected for game %s: %s", game_id, exc)
 
     return _render_dashboard_fragments(request, session, game_id)

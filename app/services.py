@@ -8,7 +8,7 @@ Query helpers: get_game_state.
 All functions take a Session as first argument for explicit transaction control.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -46,11 +46,7 @@ class GameState:
     game: Game
     players: list[Player]
     action_count: int
-    action_details: list[ActionDetail] = None
-
-    def __post_init__(self):
-        if self.action_details is None:
-            self.action_details = []
+    action_details: list[ActionDetail] = field(default_factory=list)
 
 
 def get_game_state(session: Session, game_id: int) -> GameState:
@@ -135,7 +131,8 @@ def add_score(
         The created ScoreAction.
 
     Raises:
-        ValueError: If game state doesn't allow this event type, or player_id not found.
+        ValueError: If game state doesn't allow this event type, or a player
+            doesn't exist or doesn't belong to this game.
     """
     game = session.get(Game, game_id)
     if game is None:
@@ -154,6 +151,15 @@ def add_score(
     else:
         raise ValueError(f"Cannot add scores in '{game.status}' state")
 
+    # Validate every player before mutating anything, so a bad player_id
+    # can't leave a partially-built action in the session.
+    players: dict[int, Player] = {}
+    for player_id, _ in player_points:
+        player = session.get(Player, player_id)
+        if player is None or player.game_id != game_id:
+            raise ValueError(f"Player {player_id} not found in game {game_id}")
+        players[player_id] = player
+
     action = ScoreAction(
         game_id=game_id,
         event_type=event_type,
@@ -163,10 +169,7 @@ def add_score(
     session.flush()  # Get action.id without committing
 
     for player_id, points in player_points:
-        player = session.get(Player, player_id)
-        if player is None:
-            raise ValueError(f"Player {player_id} not found")
-
+        player = players[player_id]
         score_before = player.score_total
         player.score_total += points
 
@@ -194,10 +197,12 @@ def undo_last(session: Session, game_id: int) -> ScoreAction | None:
         The undone ScoreAction, or None if no active actions exist.
 
     Raises:
-        ValueError: If game is in finished state.
+        ValueError: If game does not exist or is in finished state.
     """
     game = session.get(Game, game_id)
-    if game is not None and game.status == "finished":
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status == "finished":
         raise ValueError("Cannot undo in a finished game")
 
     statement = (
@@ -237,10 +242,12 @@ def rollback_to(session: Session, game_id: int, action_id: int) -> int:
         Number of actions that were undone.
 
     Raises:
-        ValueError: If game is in finished state.
+        ValueError: If game does not exist or is in finished state.
     """
     game = session.get(Game, game_id)
-    if game is not None and game.status == "finished":
+    if game is None:
+        raise ValueError(f"Game {game_id} not found")
+    if game.status == "finished":
         raise ValueError("Cannot rollback in a finished game")
 
     statement = (
@@ -307,7 +314,14 @@ def create_game(session: Session, name: str) -> Game:
 
     Returns:
         The created Game.
+
+    Raises:
+        ValueError: If name is blank.
     """
+    name = name.strip()
+    if not name:
+        raise ValueError("Game name cannot be empty")
+
     game = Game(name=name, status="setup")
     session.add(game)
     session.commit()
@@ -330,7 +344,8 @@ def add_player(
         The created Player.
 
     Raises:
-        ValueError: If game is not in setup, or already has 6 players.
+        ValueError: If game is not in setup, already has 6 players, name is
+            blank or taken, or color is unknown or taken.
     """
     game = session.get(Game, game_id)
     if game is None:
@@ -338,13 +353,24 @@ def add_player(
     if game.status != "setup":
         raise ValueError("Can only add players during setup")
 
-    existing = session.exec(
-        select(func.count(Player.id)).where(Player.game_id == game_id)
-    ).one()
-    if existing >= 6:
-        raise ValueError("Maximum 6 players per game")
+    name = name.strip()
+    if not name:
+        raise ValueError("Player name cannot be empty")
+    if color not in COLOR_HEX_MAP:
+        raise ValueError(f"Invalid color '{color}'")
 
-    turn_order = existing + 1
+    # Pre-check uniqueness so callers get ValueError instead of IntegrityError.
+    current = session.exec(
+        select(Player).where(Player.game_id == game_id)
+    ).all()
+    if len(current) >= 6:
+        raise ValueError("Maximum 6 players per game")
+    if any(p.name == name for p in current):
+        raise ValueError(f"Name '{name}' is already taken in this game")
+    if any(p.color == color for p in current):
+        raise ValueError(f"Color '{color}' is already taken in this game")
+
+    turn_order = len(current) + 1
     player = Player(
         game_id=game_id, name=name, color=color, turn_order=turn_order
     )
@@ -447,7 +473,7 @@ def begin_scoring(session: Session, game_id: int) -> Game:
 
 
 def finish_game(session: Session, game_id: int) -> Game:
-    """Transition a game from scoring to finished status.
+    """Transition a game from playing or scoring to finished status.
 
     Args:
         session: Database session.
@@ -457,7 +483,7 @@ def finish_game(session: Session, game_id: int) -> Game:
         The updated Game.
 
     Raises:
-        ValueError: If game is not in scoring status.
+        ValueError: If game is not in playing or scoring status.
     """
     game = session.get(Game, game_id)
     if game is None:
@@ -488,33 +514,35 @@ class DashboardStats:
 
 def get_dashboard_stats(session: Session) -> DashboardStats:
     """Compute aggregate stats across all games for the home dashboard."""
-    # Total / finished / active counts
-    total_games = session.exec(select(func.count(Game.id))).one()
-    finished_games = session.exec(
-        select(func.count(Game.id)).where(Game.status == "finished")
-    ).one()
-    active_games = session.exec(
-        select(func.count(Game.id)).where(Game.status.in_(["playing", "scoring"]))
-    ).one()
+    # One query for all games, one for all players (grouped in Python),
+    # one count for actions -- avoids a players query per game.
+    all_games = session.exec(
+        select(Game).order_by(Game.created_at.desc())
+    ).all()
 
-    # Total scoring actions (across all games, only active ones)
+    players_by_game: dict[int, list[Player]] = {}
+    for player in session.exec(
+        select(Player).order_by(
+            Player.score_total.desc(), Player.turn_order
+        )
+    ).all():
+        players_by_game.setdefault(player.game_id, []).append(player)
+
     total_actions = session.exec(
         select(func.count(ScoreAction.id))
         .where(ScoreAction.is_undone == False)  # noqa: E712
     ).one()
 
-    # Top winners: players who won finished games (highest score in each finished game)
-    finished = session.exec(
-        select(Game).where(Game.status == "finished")
-    ).all()
+    total_games = len(all_games)
+    finished_games = sum(1 for g in all_games if g.status == "finished")
+    active_games = sum(1 for g in all_games if g.status in ("playing", "scoring"))
 
+    # Top winners: players who won finished games (highest score in each finished game)
     winner_counts: dict[str, dict] = {}  # name -> {"wins": int, "color": str}
-    for game in finished:
-        players = session.exec(
-            select(Player)
-            .where(Player.game_id == game.id)
-            .order_by(Player.score_total.desc())
-        ).all()
+    for game in all_games:
+        if game.status != "finished":
+            continue
+        players = players_by_game.get(game.id, [])
         if players:
             winner = players[0]
             if winner.name not in winner_counts:
@@ -527,17 +555,9 @@ def get_dashboard_stats(session: Session) -> DashboardStats:
     )[:5]
 
     # Recent games (last 10)
-    recent_raw = session.exec(
-        select(Game).order_by(Game.created_at.desc()).limit(10)
-    ).all()
-
     recent_games = []
-    for game in recent_raw:
-        players = session.exec(
-            select(Player)
-            .where(Player.game_id == game.id)
-            .order_by(Player.score_total.desc())
-        ).all()
+    for game in all_games[:10]:
+        players = players_by_game.get(game.id, [])
         winner = None
         if game.status == "finished" and players:
             winner = {"name": players[0].name, "score": players[0].score_total, "color": players[0].color}
@@ -552,10 +572,6 @@ def get_dashboard_stats(session: Session) -> DashboardStats:
         })
 
     # Games by week (last 8 weeks)
-    all_games = session.exec(
-        select(Game).order_by(Game.created_at.desc())
-    ).all()
-
     week_counts: dict[str, int] = {}
     for game in all_games:
         week_key = game.created_at.strftime("%Y-W%W")

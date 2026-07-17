@@ -9,12 +9,14 @@ import random
 
 import pytest
 
-from app.models import ScoreAction, ScoreEntry
+from app.models import Game, Player, ScoreAction, ScoreEntry
 from app.services import (
     PLAYING_EVENT_TYPES,
     SCORING_EVENT_TYPES,
+    add_player,
     add_score,
     begin_scoring,
+    create_game,
     finish_game,
     recalculate_score,
     rollback_to,
@@ -96,6 +98,41 @@ class TestAddScore:
 
         with pytest.raises(ValueError, match="not found"):
             add_score(session, game.id, [(9999, 5)], "MANUAL")
+
+    def test_add_score_player_from_other_game(self, session, game_with_players):
+        """Scoring a player that belongs to a different game raises ValueError."""
+        game, _ = game_with_players
+
+        other_game = Game(name="Other Game", status="playing")
+        session.add(other_game)
+        session.flush()
+        outsider = Player(
+            game_id=other_game.id, name="Carol", color="green", turn_order=1
+        )
+        session.add(outsider)
+        session.commit()
+        session.refresh(outsider)
+
+        with pytest.raises(ValueError, match="not found in game"):
+            add_score(session, game.id, [(outsider.id, 8)], "ROAD_COMPLETED")
+
+        session.refresh(outsider)
+        assert outsider.score_total == 0
+
+    def test_add_score_invalid_player_leaves_no_partial_state(
+        self, session, game_with_players
+    ):
+        """A failed add_score must not leave partial mutations in the session."""
+        game, (alice, bob) = game_with_players
+
+        with pytest.raises(ValueError, match="not found"):
+            add_score(session, game.id, [(alice.id, 5), (9999, 5)], "MANUAL")
+
+        assert alice.score_total == 0
+        actions = session.exec(
+            select(ScoreAction).where(ScoreAction.game_id == game.id)
+        ).all()
+        assert actions == []
 
 
 # ---------------------------------------------------------------------------
@@ -585,3 +622,74 @@ class TestFinishedStateGuards:
         assert count == 1
         session.refresh(alice)
         assert alice.score_total == 8
+
+
+# ---------------------------------------------------------------------------
+# Setup validation tests (create_game / add_player)
+# ---------------------------------------------------------------------------
+
+
+class TestSetupValidation:
+    def test_create_game_blank_name(self, session):
+        """Creating a game with a blank name raises ValueError."""
+        with pytest.raises(ValueError, match="name"):
+            create_game(session, "   ")
+
+    def test_add_player_invalid_color(self, session):
+        """A color outside the known palette raises ValueError.
+
+        An invalid color stored in the DB crashes the dashboard later
+        (KeyError in PLAYER_COLORS lookup), so it must be rejected here.
+        """
+        game = create_game(session, "Setup Game")
+
+        with pytest.raises(ValueError, match="color"):
+            add_player(session, game.id, "Ana", "purple")
+
+    def test_add_player_duplicate_name(self, session):
+        """Duplicate player name raises ValueError, not a DB IntegrityError."""
+        game = create_game(session, "Setup Game")
+        add_player(session, game.id, "Ana", "red")
+
+        with pytest.raises(ValueError, match="[Nn]ame"):
+            add_player(session, game.id, "Ana", "blue")
+
+    def test_add_player_duplicate_color(self, session):
+        """Duplicate player color raises ValueError, not a DB IntegrityError."""
+        game = create_game(session, "Setup Game")
+        add_player(session, game.id, "Ana", "red")
+
+        with pytest.raises(ValueError, match="[Cc]olor"):
+            add_player(session, game.id, "Beto", "red")
+
+    def test_add_player_blank_name(self, session):
+        """Blank player name raises ValueError."""
+        game = create_game(session, "Setup Game")
+
+        with pytest.raises(ValueError, match="name"):
+            add_player(session, game.id, "  ", "red")
+
+    def test_add_player_name_is_trimmed(self, session):
+        """Surrounding whitespace is stripped before saving."""
+        game = create_game(session, "Setup Game")
+
+        player = add_player(session, game.id, "  Ana  ", "red")
+
+        assert player.name == "Ana"
+
+
+# ---------------------------------------------------------------------------
+# Nonexistent game guards
+# ---------------------------------------------------------------------------
+
+
+class TestNonexistentGameGuards:
+    def test_undo_nonexistent_game(self, session):
+        """undo_last on a nonexistent game raises ValueError."""
+        with pytest.raises(ValueError, match="not found"):
+            undo_last(session, 9999)
+
+    def test_rollback_nonexistent_game(self, session):
+        """rollback_to on a nonexistent game raises ValueError."""
+        with pytest.raises(ValueError, match="not found"):
+            rollback_to(session, 9999, 1)

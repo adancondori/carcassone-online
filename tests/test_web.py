@@ -651,12 +651,12 @@ class TestGameStates:
         assert resp.headers["location"] == f"/games/{game_id}"
 
     def test_begin_scoring_dashboard_shows_scoring_status(self, client, session):
-        """After begin_scoring, GET dashboard contains 'Puntuacion final' in header-status."""
+        """After begin_scoring, GET dashboard contains 'Puntuación final' in header-status."""
         game_id, _ = create_started_game(client, session)
         begin_scoring(client, game_id)
         resp = client.get(f"/games/{game_id}")
         assert resp.status_code == 200
-        assert "Puntuacion final" in resp.text
+        assert "Puntuación final" in resp.text
 
     def test_finish_game_redirect(self, client, session):
         """POST /finish returns 303 redirect to dashboard."""
@@ -804,3 +804,36 @@ class TestGameStates:
         score_table_html = resp.text[tb_start:tb_end]
         assert 'class="score-value">10</td>' in score_table_html
         assert 'class="score-value">15</td>' not in score_table_html
+
+
+# ---------------------------------------------------------------------------
+# Nonexistent game handling
+# ---------------------------------------------------------------------------
+
+
+class TestNotFound:
+    def test_dashboard_nonexistent_game_returns_404(self, client):
+        """GET dashboard for a game that doesn't exist returns 404, not 500."""
+        resp = client.get("/games/9999")
+        assert resp.status_code == 404
+
+    def test_setup_nonexistent_game_returns_404(self, client):
+        """GET setup for a game that doesn't exist returns 404, not 500."""
+        resp = client.get("/games/9999/setup")
+        assert resp.status_code == 404
+
+    def test_score_nonexistent_game_returns_404(self, client):
+        """POST score to a game that doesn't exist returns 404, not 500."""
+        resp = client.post(
+            "/games/9999/score",
+            data={"player_ids": "1", "points": "5", "event_type": "MANUAL"},
+        )
+        assert resp.status_code == 404
+
+
+class TestCreateGameValidation:
+    def test_blank_game_name_redirects_to_new(self, client):
+        """POST /games with a blank name redirects back instead of erroring."""
+        resp = client.post("/games", data={"name": "   "}, follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/games/new"

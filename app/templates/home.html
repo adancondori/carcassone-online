@@ -5,7 +5,7 @@
     <!-- Header -->
     <div class="header">
         <h1>Carcassonne</h1>
-        <p>Scoreboard</p>
+        <p>Marcador de partidas</p>
     </div>
 
     <!-- New Game Button -->
@@ -39,7 +39,7 @@
             {% for winner in stats.top_winners %}
             <div class="winner-row">
                 <span class="winner-rank">{{ loop.index }}</span>
-                <span class="player-dot" style="background:{{ PLAYER_COLORS[winner.color].hex }}"></span>
+                <span class="player-dot meeple-dot" style="background:{{ PLAYER_COLORS[winner.color].hex }}"></span>
                 <span class="winner-name-text">{{ winner.name }}</span>
                 <span class="winner-wins">{{ winner.wins }} {% if winner.wins == 1 %}victoria{% else %}victorias{% endif %}</span>
             </div>
@@ -78,7 +78,7 @@
                     <span class="recent-game-status status-{{ game.status }}">
                         {% if game.status == 'setup' %}Configurando
                         {% elif game.status == 'playing' %}En juego
-                        {% elif game.status == 'scoring' %}Puntuacion final
+                        {% elif game.status == 'scoring' %}Puntuación final
                         {% elif game.status == 'finished' %}Finalizada
                         {% endif %}
                     </span>
@@ -108,7 +108,7 @@
     <!-- Empty State -->
     {% if stats.total_games == 0 %}
     <div class="empty-state">
-        <p>No hay partidas todavia.</p>
+        <p>No hay partidas todavía.</p>
         <p>Crea tu primera partida para empezar a jugar.</p>
     </div>
     {% endif %}

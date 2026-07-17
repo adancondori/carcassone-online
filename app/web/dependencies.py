@@ -118,8 +118,7 @@ def build_board_context(players: list) -> dict:
     # Group players by cell number
     cell_groups: dict[int, list] = defaultdict(list)
     for player in players:
-        cell = player.score_total % 50
-        cell_groups[cell].append(player)
+        cell_groups[player.current_cell].append(player)
 
     result: dict[int, list[dict]] = {}
     for cell_num, cell_players in cell_groups.items():
@@ -134,7 +133,7 @@ def build_board_context(players: list) -> dict:
                 "hex": PLAYER_COLORS[player.color]["hex"],
                 "color": player.color,
                 "initial": player.name[0],
-                "lap": player.score_total // 50,
+                "lap": player.lap,
             })
         result[cell_num] = tokens
 
